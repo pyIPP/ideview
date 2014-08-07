@@ -71,6 +71,10 @@ class ShotfileBackend(Backend):
         self.idf = dd.shotfile('IDF', shot, experiment, edition)
         self.idg = dd.shotfile('IDG', shot, experiment, edition)
         self.times = self.ide('time').data
+
+    def __del__(self):
+        for key in self.__cache.keys():
+            del self.__cache[key]
     
     def getAvailableTimes(self):
         return self.times
@@ -83,9 +87,9 @@ class ShotfileBackend(Backend):
     __cache = {}
     def getData(self, name):
         if name not in self.__cache:
-            self.__cache[name] = self.ide(name) if name in self.ide.getObjectNames().values() \
-                            else self.idf(name) if name in self.idf.getObjectNames().values() \
-                            else self.idg(name)
+            self.__cache[name] = copy(self.ide(name) if name in self.ide.getObjectNames().values() \
+                                 else self.idf(name) if name in self.idf.getObjectNames().values() \
+                                 else self.idg(name))
         return self.__cache[name]
 
     def getSinglePlotForTimePoint(self, name, t):
@@ -138,7 +142,18 @@ class ShotfileBackend(Backend):
             toReturn[name] = self.getSinglePlotForTimePoint(name, t)
         return toReturn
 
+class StatusBar(tk.Frame):   
+    def __init__(self, master):
+        tk.Frame.__init__(self, master)
+        self.variable=tk.StringVar()        
+        self.label=tk.Label(self, bd=1, relief=tk.SUNKEN, anchor=tk.W,
+                           textvariable=self.variable)
+        self.variable.set('')
+        self.label.pack(fill=tk.X)        
+        self.pack(side=tk.BOTTOM, fill=tk.X)
 
+    def setText(self, text):
+        self.variable.set(text)
 
 class View(tk.Tk):
     backend = None
@@ -150,6 +165,9 @@ class View(tk.Tk):
 
     def embed(self):
         embed()
+
+    def status(self, text):
+        self.statusbar.setText(text)
 
     def initialize(self):
         self.settings = Settings()
@@ -171,6 +189,8 @@ class View(tk.Tk):
         menubar.add_cascade(label="Debug", menu=debugmenu)
 
         self.config(menu=menubar)
+
+        self.statusbar = StatusBar(self)
 
 
         topframe = tk.Frame(self)
@@ -217,11 +237,15 @@ class View(tk.Tk):
         toolframe.pack_propagate(0)
         toolframe.pack(side=tk.TOP,fill=tk.X)
 
+
         self.geometry(self.settings.windowSize)
         self.bind("<Configure>", self.onResize)
 
         # todo remove
-        self.onLoadButtonClick()
+        #self.onLoadButtonClick()
+        #self.entryShot.delete(0, tk.END)
+        #self.entryShot.insert(0, "31113")
+        #self.onLoadButtonClick()
         #self.viewSettings()
 
     def onResize(self, event):
@@ -234,10 +258,12 @@ class View(tk.Tk):
         if btn.config()['text'][-1] == self.playString:
             btn.configure(text=self.pauseString)
             self.playing = True
+            self.status('Playing...')
             self.playLoop()
         else:
             btn.configure(text=self.playString)
-            self.playing = False
+            self.playing = False            
+            self.status('')
 
     def playLoop(self):
         if not self.playing:
@@ -257,17 +283,25 @@ class View(tk.Tk):
         self.load(self.entryExp.get(), self.entryShot.get(), self.entryEdition.get())
 
     structures = []
-    def load(self, exp, shot, edition):
+    loaded = False
+    def load(self, exp, shot, edition):    
+        self.status('Loading %s...'%shot)
         self.backend = ShotfileBackend(exp, int(shot), int(edition))
         t = self.backend.getAvailableTimes()
         self.timeslider1.configure(from_=t.min(), to=t.max(), resolution=t[1]-t[0])
+        self.timeslider1.set(t.min())
 
         eq = kk.kk()
         eq.Open(int(shot), 'AUGD', 'YGC')
         self.structures = eq.get_vessel_structures()
 
+        self.status('Loaded %s.'%shot)
+
         self.preparePlots()
-        self.updatePlots()
+        if not self.loaded: self.updatePlots()
+
+        self.loaded = True
+
         
     def viewSettings(self):
         if self.backend == None:
@@ -339,7 +373,8 @@ class View(tk.Tk):
         if self.backend == None:
             return
 
-        if self.__firstplot: self.__linecache = {}
+        if self.__firstplot: 
+            self.__linecache = {}
 
         t = float(self.timeslider1.get())
 
@@ -354,6 +389,7 @@ class View(tk.Tk):
             if ps.kind in ('profile', 'trace'):
                 tmp = None
                 if self.__firstplot:
+                    ax.cla()
                     ax.grid('on')
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
