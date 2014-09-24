@@ -8,7 +8,8 @@ from IPython import embed
 from copy import copy
 import json
 
-import dd_20140805 as dd, kk_abock as kk
+import dd_20140805 as dd
+import kk_abock as kk
 
 import Tkinter as tk
 
@@ -17,8 +18,10 @@ class Bunch(object):
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
+
 class PlotBunch(Bunch):
     kind = 'profile'
+
 
 class Settings(object):
     def __init__(self, filename='$HOME/.ideview'):
@@ -28,9 +31,13 @@ class Settings(object):
         else:
             self._new()
 
-    def _new(self):
-        self.selectedPlots = ['profile-pressure', 'profile-q', 'contour-rho', 'trace-Wmhd']
-        self.windowSize= "800x600"
+    def _new(self):  # some default settings
+        self.selectedPlots = ['profile-pressure', 'profile-q', 'contour-rho',
+                              'trace-Wmhd']
+        self.lastShot = 31163
+        self.lastExp = "ABOCK"
+        self.lastEd = 0
+        self.windowSize = "800x600"
         self.save()
 
     def _load(self):
@@ -43,10 +50,12 @@ class Settings(object):
 
     def __setattr__(self, name, value):
         self.__dict__[name] = value
-        if name != 'filename': self.save()
+        if name != 'filename':
+            self.save()
 
     def __getattr__(self, name):
         return self.__dict__[name]
+
 
 class Backend(object):
     def __init__(self):
@@ -60,6 +69,7 @@ class Backend(object):
 
     def getPlotsForTimePoint(self, time):
         return None
+
 
 class ShotfileBackend(Backend):
     def __init__(self, experiment='ABOCK', shot=31163, edition=0):
@@ -75,25 +85,39 @@ class ShotfileBackend(Backend):
     def __del__(self):
         for key in self.__cache.keys():
             del self.__cache[key]
-    
+
     def getAvailableTimes(self):
         return self.times
 
-    __plotNames = ['profile-pressure', 'profile-q', 'contour-pfl', 'contour-rho', 'trace-Wmhd']
+    __plotNames = ['profile-pressure', 'profile-q', 'contour-pfl',
+                   'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
 
     __cache = {}
+
     def getData(self, name):
         if name not in self.__cache:
-            self.__cache[name] = copy(self.ide(name) if name in self.ide.getObjectNames().values() \
-                                 else self.idf(name) if name in self.idf.getObjectNames().values() \
+            self.__cache[name] = copy(self.ide(name) if name in self.ide.getObjectNames().values()
+                                 else self.idf(name) if name in self.idf.getObjectNames().values()
                                  else self.idg(name))
         return self.__cache[name]
 
     def getSinglePlotForTimePoint(self, name, t):
-        if 'contour' in name:
+        if 'timecontour' in name:
+            if name == 'timecontour-pressure':
+                p = self.getData('pres')
+                return PlotBunch(kind='timecontour', 
+                    data=[{'x':p.time, 'y': p.area.data[0], 'z':p.data},
+                          {'x': [t,t], 'y': [p.area.data[0,0], p.area.data[0,-1]], 'ls': '-', 'indicator': True}])
+            elif name == 'timecontour-q':
+                q = self.getData('q_sa')
+                return PlotBunch(kind='timecontour', 
+                    data=[{'x':q.time, 'y': q.area.data[0], 'z':-q.data, 'levels':[0, 1, 1.5, 2, 3, 4, 5, 6, 7]},
+                          {'x': [t,t], 'y': [q.area.data[0,0], q.area.data[0,-1]], 'ls': '-', 'indicator': True}])
+
+        elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
             Ri = self.getData('Ri').data[t_index]
             Zj = self.getData('Zj').data[t_index]
@@ -103,36 +127,35 @@ class ShotfileBackend(Backend):
                 pfm = np.sqrt((pfm-psiAx)/(psiSep-psiAx))
             elif 'pfl' in name:
                 pfm = pfm - psiSep
-            return PlotBunch(kind='contour', data=[{'x':Ri, 'y':Zj, 'z':pfm, 'psiSep':psiSep, 'psiAx':psiAx}])
+            return PlotBunch(kind='contour', data=[{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx}])
 
         elif 'trace' in name:
             if name == 'trace-Wmhd':
                 wmhd = self.getData('Wmhd')
                 wmhdunc = self.getData('Wmhd_unc')
-                return PlotBunch(kind='trace', data=[{'x':wmhd.time, 'y':wmhd.data, 'ls':'-'},
-                                                     {'x':wmhd.time, 'y':wmhd.data+wmhdunc.data, 'ls':'--'},
-                                                     {'x':wmhd.time, 'y':wmhd.data-wmhdunc.data, 'ls':'--'},
-                                                     {'x':[t,t], 'y':[0, max(wmhd.data+wmhdunc.data)], 'ls':'-', 'indicator':True}
-                                                     ])
+                return PlotBunch(kind='trace',
+                      data=[{'x': wmhd.time, 'y': wmhd.data, 'ls': '-'},
+                            {'x': wmhd.time, 'y': wmhd.data+wmhdunc.data, 'ls': '--'},
+                            {'x': wmhd.time, 'y': wmhd.data-wmhdunc.data, 'ls': '--'},
+                            {'x': [t, t], 'y': [0, max(wmhd.data+wmhdunc.data)], 'ls': '-', 'indicator': True}])
 
         elif 'profile' in name:
             if name == 'profile-q':
                 qsa  = self.getData('q_sa')(tBegin=t, tEnd=t)
                 qsap = self.getData('q_sa_plu')(tBegin=t, tEnd=t)
                 qsam = self.getData('q_sa_min')(tBegin=t, tEnd=t)
-                return PlotBunch(data=[{'x': qsa.area.data, 'y': -qsa.data, 'ls':'-'}, 
-                                       {'x':qsap.area.data, 'y':-qsap.data, 'ls':'--'}, 
-                                       {'x':qsam.area.data, 'y':-qsam.data, 'ls':'--'}],
-                                 ylim=(0,10))
+                return PlotBunch(data=[{'x': qsa.area.data,  'y': -qsa.data,  'ls': '-'},
+                                       {'x': qsap.area.data, 'y': -qsap.data, 'ls': '--'},
+                                       {'x': qsam.area.data, 'y': -qsam.data, 'ls': '--'}],
+                                 ylim=(0, 10))
             elif name == 'profile-pressure':
                 p = self.getData('pres')(tBegin=t, tEnd=t)
                 punc = self.getData('pres_unc')(tBegin=t, tEnd=t)
                 maxpres = self.getData('pres').data.max() + self.getData('pres_unc').data.max()
-                return PlotBunch(data=[{'x':p.area.data, 'y': p.data, 'ls':'-'}, 
-                                       {'x':p.area.data, 'y': p.data+punc.data, 'ls':'--'}, 
-                                       {'x':p.area.data, 'y': p.data-punc.data, 'ls':'--'}],
-                                 ylim=(0,maxpres))
-
+                return PlotBunch(data=[{'x': p.area.data, 'y': p.data, 'ls': '-'}, 
+                                       {'x': p.area.data, 'y': p.data+punc.data, 'ls': '--'},
+                                       {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--'}],
+                                 ylim=(0, maxpres))
 
     def getPlotsForTimePoint(self, names, t):
         toReturn = {}
@@ -142,11 +165,12 @@ class ShotfileBackend(Backend):
             toReturn[name] = self.getSinglePlotForTimePoint(name, t)
         return toReturn
 
-class StatusBar(tk.Frame):   
+
+class StatusBar(tk.Frame):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
-        self.variable=tk.StringVar()        
-        self.label=tk.Label(self, bd=1, relief=tk.SUNKEN, anchor=tk.W,
+        self.variable = tk.StringVar()
+        self.label = tk.Label(self, bd=1, relief=tk.SUNKEN, anchor=tk.W,
                            textvariable=self.variable)
         self.variable.set('')
         self.label.pack(fill=tk.X)        
@@ -155,11 +179,12 @@ class StatusBar(tk.Frame):
     def setText(self, text):
         self.variable.set(text)
 
+
 class View(tk.Tk):
     backend = None
 
-    def __init__(self,parent):
-        tk.Tk.__init__(self,parent)
+    def __init__(self, parent):
+        tk.Tk.__init__(self, parent)
         self.parent = parent
         self.initialize()
 
@@ -192,7 +217,6 @@ class View(tk.Tk):
 
         self.statusbar = StatusBar(self)
 
-
         topframe = tk.Frame(self)
         topframe.pack(side=tk.TOP, fill=tk.X)
 
@@ -214,7 +238,7 @@ class View(tk.Tk):
         self.entryEdition.pack(side=tk.LEFT)
         self.entryEdition.insert(0, "0")
 
-        button = tk.Button(topframe,text="Load", command=self.onLoadButtonClick)
+        button = tk.Button(topframe, text="Load", command=self.onLoadButtonClick)
         button.pack(side=tk.LEFT)
 
         self.playString = u"  \u25B6 "
@@ -222,7 +246,7 @@ class View(tk.Tk):
         self.playButton = tk.Button(topframe, text=self.playString, command=self.onPlayButtonClick)
         self.playButton.pack(side=tk.LEFT)
 
-        self.timeslider1 = tk.Scale(topframe,orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
+        self.timeslider1 = tk.Scale(topframe, orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
         self.timeslider1.pack(side=tk.LEFT, fill=tk.X, expand=1)
 
         self.viewfig = Figure()
@@ -230,13 +254,12 @@ class View(tk.Tk):
         self.canvas.show()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
-        toolbar = NavigationToolbar2TkAgg( self.canvas, self)
+        toolbar = NavigationToolbar2TkAgg(self.canvas, self)
         toolbar.update()
 
         toolframe = tk.Frame(self, height=45)
         toolframe.pack_propagate(0)
-        toolframe.pack(side=tk.TOP,fill=tk.X)
-
+        toolframe.pack(side=tk.TOP, fill=tk.X)
 
         self.geometry(self.settings.windowSize)
         self.bind("<Configure>", self.onResize)
@@ -249,10 +272,11 @@ class View(tk.Tk):
         #self.viewSettings()
 
     def onResize(self, event):
-        if event.widget == self: # store window size
-            self.settings.windowSize = "%ix%i"%(event.width, event.height)
+        if event.widget == self:  # store window size
+            self.settings.windowSize = "%ix%i" % (event.width, event.height)
 
     playing = False
+
     def onPlayButtonClick(self):
         btn = self.playButton
         if btn.config()['text'][-1] == self.playString:
@@ -309,6 +333,7 @@ class View(tk.Tk):
         selected = self.settings.selectedPlots
         available = self.backend.getAvailablePlotNames()
         t = tk.Toplevel(self)
+        t.resizable(0,0)
         t.wm_title("View settings")
         psFrame = tk.LabelFrame(t, text="Plot selection", bd=1, relief=tk.SUNKEN)
         psFrame.pack(side=tk.LEFT)#,fill=tk.X)
@@ -321,21 +346,23 @@ class View(tk.Tk):
             self.updatePlots()
 
         for i, name in enumerate(available):
-            cb = tk.Checkbutton(psFrame, text=name.split('-')[-1], variable=boxvars[name],
-                onvalue=1, offvalue=0, command=updatePlotSelection)
+            t, n = name.split('-')
+            cb = tk.Checkbutton(psFrame, text="%s (%s)"%(n, t), 
+                variable=boxvars[name], onvalue=1, offvalue=0, command=updatePlotSelection)
             if name in selected: 
                 #print name
                 boxvars[name].set(1)
                 cb.select()
             cb.grid(row=i, sticky=tk.W)
-        t.resizable(0,0)
 
     def preparePlots(self): 
         self.viewfig.clf()
         self.__firstplot = True
 
         s = ' '.join(self.settings.selectedPlots)
-        Nc, Np, Nt = s.count('contour'), s.count('profile'), s.count('trace')
+        Nc = s.count('contour') - s.count('timecontour')
+        Np = s.count('profile')
+        Nt = s.count('trace') + s.count('timecontour')
         Nw, Nh = 1, 1
         while Nw*Nh < Np:
             Nw += 1
@@ -348,15 +375,15 @@ class View(tk.Tk):
         Cc, Cp, Ct = 0, 0, 0
         self.axes = {}
         for i, name in enumerate(self.settings.selectedPlots):
-            if 'contour' in name:
-                Cc += 1
-                self.axes[name] = self.viewfig.add_subplot(gs[:, -Cc])
-                #print name, ':,-%i'%Cc
-            elif 'trace' in name:
+            if 'trace' in name or 'timecontour' in name:
                 Ct += 1
                 self.axes[name] = self.viewfig.add_subplot(gs[-Ct, :-Nc]) if Nc != 0 else \
                                   self.viewfig.add_subplot(gs[-Ct, :])
                 #print name, '-%i,:-%i'%(Ct, Nc)
+            elif 'contour' in name:
+                Cc += 1
+                self.axes[name] = self.viewfig.add_subplot(gs[:, -Cc])
+                #print name, ':,-%i'%Cc
             else:
                 Cp += 1
                 yi = (Cp - 1)%Nw
@@ -404,6 +431,27 @@ class View(tk.Tk):
                          else ax.plot(x, y, ls, color='black')[0] if 'indicator' in p \
                          else ax.plot(x, y, ls, label=key.split('-')[-1])[0]
                         self.__linecache[cachekey] = tmp
+            elif ps.kind == 'timecontour':
+                if self.__firstplot:
+                    ax.cla()
+                    ax.grid('on')
+                for j, p in enumerate(ps.data):
+                    cachekey = '%i%s%i'%(i, key, j)
+                    if 'indicator' in p:
+                        x, y, ls = p['x'], p['y'], p['ls']
+                        if cachekey in self.__linecache:
+                            self.__linecache[cachekey].set_xdata(x)
+                            self.__linecache[cachekey].set_ydata(y)
+                        else:
+                            tmp = ax.plot(x, y, ls, color='black')[0]
+                            self.__linecache[cachekey] = tmp
+                    else:
+                        x, y, z = p['x'], p['y'], p['z']
+                        if not cachekey in self.__linecache:
+                            tmp = ax.contour(x, y, z.T, 20) if 'levels' not in p else \
+                                  ax.contour(x, y, z.T, levels=p['levels'])
+                            ax.set_title(key.split('-')[-1])
+                            self.__linecache[cachekey] = tmp
             elif ps.kind == 'contour':
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
@@ -417,18 +465,19 @@ class View(tk.Tk):
                         lvls = np.arange(z.min(), z.max(), 0.1)
                         lvls = np.insert(lvls, 0, 0)
                         lvls = lvls[lvls.argsort()]
+                        ax.set_title('rho')
                     elif 'pfl' in key:
                         lvls = np.arange(z.min(), z.max(), 0.05)
                         lvls = np.insert(lvls, 0, p['psiSep'])
                         lvls = lvls[lvls.argsort()]
+                        ax.set_title('pfl')
                     self.__linecache[cachekey] = ax.contour(x, y, z, 
                                 levels=lvls, colors='k')
                     ax.set_aspect('equal')
-                    # todo: draw WALLS
             if self.__firstplot:
                 if hasattr(ps, 'xlim'): ax.set_xlim(ps.xlim)
                 if hasattr(ps, 'ylim'): ax.set_ylim(ps.ylim)
-                if ps.kind != 'contour': ax.legend(loc='best')
+                if 'contour' not in ps.kind: ax.legend(loc='best')
                 if ps.kind == 'contour': 
                     for s in self.structures:
                         if max(s['z']) - min(s['z']) < 1.5:
