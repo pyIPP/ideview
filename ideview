@@ -34,9 +34,9 @@ class Settings(object):
     def _new(self):  # some default settings
         self.selectedPlots = ['profile-pressure', 'profile-q', 'contour-rho',
                               'trace-Wmhd']
-        self.lastShot = 31163
+        self.lastShot = "31163"
         self.lastExp = "ABOCK"
-        self.lastEd = 0
+        self.lastEd = "0"
         self.windowSize = "800x600"
         self.save()
 
@@ -224,19 +224,19 @@ class View(tk.Tk):
         label.pack(side=tk.LEFT)
         self.entryExp = tk.Entry(topframe, width=7)
         self.entryExp.pack(side=tk.LEFT)
-        self.entryExp.insert(0, "ABOCK")
+        self.entryExp.insert(0, self.settings.lastExp)
 
         label = tk.Label(topframe, text=" Shot:")
         label.pack(side=tk.LEFT)
         self.entryShot = tk.Entry(topframe, width=6)
         self.entryShot.pack(side=tk.LEFT)
-        self.entryShot.insert(0, "31163")
+        self.entryShot.insert(0, self.settings.lastShot)
 
         label = tk.Label(topframe, text=" Ed:")
         label.pack(side=tk.LEFT)
         self.entryEdition = tk.Entry(topframe, width=3)
         self.entryEdition.pack(side=tk.LEFT)
-        self.entryEdition.insert(0, "0")
+        self.entryEdition.insert(0, self.settings.lastEd)
 
         button = tk.Button(topframe, text="Load", command=self.onLoadButtonClick)
         button.pack(side=tk.LEFT)
@@ -304,6 +304,9 @@ class View(tk.Tk):
         self._job = self.after(10, self.playLoop)
 
     def onLoadButtonClick(self):
+        self.settings.lastExp = self.entryExp.get()
+        self.settings.lastShot = self.entryShot.get()
+        self.settings.lastEd = self.entryEdition.get()
         self.load(self.entryExp.get(), self.entryShot.get(), self.entryEdition.get())
 
     structures = []
@@ -363,7 +366,7 @@ class View(tk.Tk):
         Nc = s.count('contour') - s.count('timecontour')
         Np = s.count('profile')
         Nt = s.count('trace') + s.count('timecontour')
-        Nw, Nh = 1, 1
+        Nw, Nh = 1, 0
         while Nw*Nh < Np:
             Nw += 1
             if not Nw*Nh < Np:
@@ -483,6 +486,8 @@ class View(tk.Tk):
                         if max(s['z']) - min(s['z']) < 1.5:
                             ax.fill(s['R'], s['z'], 'LightGray')
                         ax.plot(s['R'], s['z'], 'Black')
+                elif not hasattr(ps, 'xlim') and ps.kind != 'profile':
+                    ax.set_xlim(self.backend.getAvailableTimes().min(), self.backend.getAvailableTimes().max())
             
         self.__firstplot = False
         self.canvas.draw()
