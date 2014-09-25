@@ -31,13 +31,15 @@ class Settings(object):
         else:
             self._new()
 
+    startDict = {'selectedPlots':['profile-pressure', 'profile-q', 'contour-rho',
+                              'trace-Wmhd'],
+                'lastShot': '31163',
+                'lastExp': 'ABOCK',
+                'lastEd': '0',
+                'windowSize': '800x600'}
+
     def _new(self):  # some default settings
-        self.selectedPlots = ['profile-pressure', 'profile-q', 'contour-rho',
-                              'trace-Wmhd']
-        self.lastShot = "31163"
-        self.lastExp = "ABOCK"
-        self.lastEd = "0"
-        self.windowSize = "800x600"
+        self.__dict__.update(self.startDict)
         self.save()
 
     def _load(self):
@@ -54,6 +56,8 @@ class Settings(object):
             self.save()
 
     def __getattr__(self, name):
+        if name not in self.__dict__:
+            self.__dict__[name] = self.startDict[name]
         return self.__dict__[name]
 
 
@@ -118,7 +122,7 @@ class ShotfileBackend(Backend):
             elif name == 'timecontour-q':
                 q = self.getData('q_sa')
                 return PlotBunch(kind='timecontour', 
-                    data=[{'x':q.time, 'y': q.area.data[0], 'z':-q.data, 'levels':[1, 1.5, 2, 3, 4, 5, 6, 7]},
+                    data=[{'x':q.time, 'y': q.area.data[0], 'z':-q.data, 'levels':[1, 1.5, 2, 3, 4, 5]},
                           {'x': [t,t], 'y': [q.area.data[0,0], q.area.data[0,-1]], 'ls': '-', 'indicator': True}])
 
         elif 'contour' in name:
@@ -249,10 +253,16 @@ class View(tk.Tk):
         button = tk.Button(topframe, text="Load", command=self.onLoadButtonClick)
         button.pack(side=tk.LEFT)
 
+        button = tk.Button(topframe, text="<", command=self.onPrevButtonClick)
+        button.pack(side=tk.LEFT)
+
         self.playString = u"  \u25B6 "
         self.pauseString = u"\u275A\u275A"
         self.playButton = tk.Button(topframe, text=self.playString, command=self.onPlayButtonClick)
         self.playButton.pack(side=tk.LEFT)
+
+        button = tk.Button(topframe, text=">", command=self.onNextButtonClick)
+        button.pack(side=tk.LEFT)
 
         self.timeslider1 = tk.Scale(topframe, orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
         self.timeslider1.pack(side=tk.LEFT, fill=tk.X, expand=1)
@@ -284,6 +294,20 @@ class View(tk.Tk):
             self.settings.windowSize = "%ix%i" % (event.width, event.height)
 
     playing = False
+
+    def onPrevButtonClick(self):
+        res = self.timeslider1.config()['resolution'][-1]
+        from_ = self.timeslider1.config()['from'][-1]
+        if not self.timeslider1.get() - res < from_:
+            self.timeslider1.set(self.timeslider1.get()-res)
+            self.updatePlots()
+
+    def onNextButtonClick(self):
+        res = self.timeslider1.config()['resolution'][-1]
+        to = self.timeslider1.config()['to'][-1]
+        if not self.timeslider1.get() + res > to:
+            self.timeslider1.set(self.timeslider1.get()+res)
+            self.updatePlots()
 
     def onPlayButtonClick(self):
         btn = self.playButton
