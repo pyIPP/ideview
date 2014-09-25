@@ -80,6 +80,8 @@ class ShotfileBackend(Backend):
         self.ide = dd.shotfile('IDE', shot, experiment, edition)
         self.idf = dd.shotfile('IDF', shot, experiment, edition)
         self.idg = dd.shotfile('IDG', shot, experiment, edition)
+        self.eq = kk.kk()
+        self.eq.Open(shot, experiment, 'IDE', edition)
         self.times = self.ide('time').data
 
     def __del__(self):
@@ -97,7 +99,9 @@ class ShotfileBackend(Backend):
 
     __cache = {}
 
-    def getData(self, name):
+    def getData(self, name, workaround_time=None):
+        if name == 'pfm' and workaround_time != None:
+            return self.eq.get_pfm(workaround_time)
         if name not in self.__cache:
             self.__cache[name] = copy(self.ide(name) if name in self.ide.getObjectNames().values()
                                  else self.idf(name) if name in self.idf.getObjectNames().values()
@@ -114,14 +118,18 @@ class ShotfileBackend(Backend):
             elif name == 'timecontour-q':
                 q = self.getData('q_sa')
                 return PlotBunch(kind='timecontour', 
-                    data=[{'x':q.time, 'y': q.area.data[0], 'z':-q.data, 'levels':[0, 1, 1.5, 2, 3, 4, 5, 6, 7]},
+                    data=[{'x':q.time, 'y': q.area.data[0], 'z':-q.data, 'levels':[1, 1.5, 2, 3, 4, 5, 6, 7]},
                           {'x': [t,t], 'y': [q.area.data[0,0], q.area.data[0,-1]], 'ls': '-', 'indicator': True}])
 
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
-            Ri = self.getData('Ri').data[t_index]
-            Zj = self.getData('Zj').data[t_index]
-            pfm = self.getData('PFM').data[t_index]
+            #Ri = self.getData('Ri').data[t_index]
+            #Zj = self.getData('Zj').data[t_index]
+            #pfm = self.getData('PFM').data[t_index]
+            #embed()
+            
+            tmp = self.getData('pfm', t)
+            Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
             psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
             if 'rho' in name:
                 pfm = np.sqrt((pfm-psiAx)/(psiSep-psiAx))
