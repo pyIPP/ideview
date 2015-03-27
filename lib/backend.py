@@ -109,20 +109,20 @@ class ShotfileBackend(Backend):
             shape = MES.area.data.shape
             MES_Area_data = MES.area.data[0 if shape[0]==1 else t_ind]
             MES_Data = MES.data[t_ind]
-            data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-'}]
+            data=[{'x': MES_Area_data, 'y': MES_Data, 'ls':'-'}]
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
-                    data[0].update({'c':'k'})
-                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data,'marker':'_', 'ls':'', 'c':'k'},
-                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'marker':'_', 'ls':'', 'c':'k'}])
+                    data[0].update({'c':'k', 'marker':'+', 'mew':1.2, 'ms':10, 'ls':''})
+                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'marker':'_', 'mew':1.2, 'ms':10, 'ls':'', 'c':'k'},
+                                 {'x': MES_Area_data, 'y': MES_Data - UNC_Data, 'marker':'_', 'mew':1.2, 'ms':10, 'ls':'', 'c':'k'}])
                 else:
-                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls':'--'},
-                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'ls': '--'}])
+                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls': '--'},
+                                 {'x': MES_Area_data, 'y': MES_Data - UNC_Data, 'ls': '--'}])
             if (not FIT is None) and fit:
                 FIT_Area_data = FIT.area.data[0 if shape[0]==1 else t_ind]
                 FIT_Data = FIT.data[t_ind]
-                data.extend([{'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-'}])
+                data.append({'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-', 'label':'fit', 'exc':True})
             return PlotBunch(data=data, setting={'ylim':(MIN, MAX)})
         except Exception as e:
             print e,  '%s-profile is not available in that shot for t=%s'%(name, t)
@@ -392,13 +392,14 @@ class ShotfileBackend(Backend):
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
                 
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},
-                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'c':'k', 'label':'constraint', 'exc': True}]
+                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'mew':1.2, 'ms':10, 'c':'k', 'label':'constraint', 'exc': True}]
                 
                 if not punc is None:
                     punc = punc(tBegin=t, tEnd=t)
-                    data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True}, {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
+                    data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True},
+                                 {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
                 if not pconunc is None:
-                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_', 'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_', 'ls': '', 'c':'k', 'exc': True}])
+                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_','mew':1.2,'ms':10,  'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_','mew':1.2,'ms':10, 'ls': '', 'c':'k', 'exc': True}])
                 
                 return PlotBunch(data=data, setting={'ylim':(0, maxpres),'xlim':(0,1)})
 

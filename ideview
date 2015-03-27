@@ -453,7 +453,7 @@ class View(tk.Tk):
                         self.__linecache[cachekey].set_data(x,y)
 
                     else:
-                        c = 'b'
+                        c = p['c'] if 'c' in p else p['color'] if 'color' in p else 'b'
                         if not exc: #'normal' profiles and traces
                             label = key.split('-')[-1] if '-' in key and j==0 else None
                             tmp, =  ax.plot(x, y, label=label,color=c, **p)
