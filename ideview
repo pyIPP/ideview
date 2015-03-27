@@ -1,341 +1,70 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-import os, sys, numpy as np, matplotlib.pyplot as plt
+import sys, numpy as np, matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
 import matplotlib.gridspec as gridspec
 from matplotlib.figure import Figure
 from IPython import embed
-from copy import copy,deepcopy
-import json
 sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
+from lib.settings import Settings
+from lib.backend import ShotfileBackend
 
-
-import dd_20140805 as dd
 import kk_abock as kk
 sys.path.append('/afs/ipp/home/g/git/python/repository/')
+from functools import partial
+
 
 from tooltip import createToolTip
-import fconf
+def fconf_on_click(event):
+    """
+    Enlarge or restore the selected axis.
+    Usage: figure.canvas.mpl_connect('button_press_event', fconf.on_click)
+    """
+    ax = event.inaxes
+    full_screen_pos = (0.1, 0.1, 0.85, 0.85)
+    #print ax.get_position().bounds
+    #if (np.array(full_screen_pos) - np.array(ax.get_position().bounds)) <= 0.01:
+        #print 'Works'
+    if ax is None:
+        # Occurs when a region not in an axis is clicked...
+        return
+    if event.button is 2: # 2 middle mouse, 3 right mouse
+        # On left click, zoom the selected axes
+        if not (np.abs(np.array(full_screen_pos) -
+np.array(ax.get_position().bounds))).sum() <= 0.01:
+            ax._orig_position = ax.get_position()
+            ax.set_position([0.1, 0.1, 0.85, 0.85])
+            for axis in event.canvas.figure.axes:
+            # Hide all the other axes...
+                if axis is not ax:
+                    axis.set_visible(False)
+    #elif event.button is 3:
+        # On right click, restore the axes
+        else:
+            try:
+                ax.set_position(ax._orig_position)
+                for axis in event.canvas.figure.axes:
+                    axis.set_visible(True)
+            except AttributeError:
+            ## If we haven't zoomed, ignore...
+                pass
+    else:
+        # No need to re-draw the canvas if it's not a left or right click
+        return
+    event.canvas.draw()
 
 import Tkinter as tk
+import ttk
 
 #TODO Allow comparims with more different equlibria (TRA,EQH,i...)
 #TODO add my special equilibria? 
 
 
-class Bunch(object):
-    def __init__(self, **kwds):
-        self.__dict__.update(kwds)
+# config.py? 
 
-
-class PlotBunch(Bunch):
-    kind = 'profile'
-
- # config.py? 
-
-class Settings(object):
-    def __init__(self, filename='$HOME/.ideview'):
-        self.filename = os.path.expandvars(filename)
-        if os.path.isfile(self.filename):
-            self._load()
-        else:
-            self._new()
-
-    startDict = {'selectedPlots':['profile-pressure', 'profile-q', 'contour-rho','trace-Wmhd'],
-                'lastDiag': 'IDE','lastShot': '31163','lastExp': 'ABOCK','lastEd': '0','windowSize': '800x600'}
-
-    def _new(self):  # some default settings
-        self.__dict__.update(self.startDict)
-        self.save()
-
-    def _load(self):
-        self.__dict__.update(json.load(open(self.filename)))
-
-    def save(self):
-        d = copy(self.__dict__)
-        d.pop('filename')
-        json.dump(d, open(self.filename, 'w'))
-
-    def __setattr__(self, name, value):
-        self.__dict__[name] = value
-        if name != 'filename':
-            self.save()
-
-    def __getattr__(self, name):
-        if name not in self.__dict__:
-            self.__dict__[name] = self.startDict[name]
-        return self.__dict__[name]
-
- 
-class Backend(object):
-    def __init__(self):
-        pass
-
-    def getAvailableTimes(self):
-        return None
-
-    def getAvailablePlotNames(self):
-        return None
-
-    def getPlotsForTimePoint(self, time):
-        return None
     
 class Data(): data = None
-
-class ShotfileBackend(Backend):
-    def __init__(self, diag='TRE',experiment='TODSTRCI', shot=30579, edition=0):
-        super(ShotfileBackend, self).__init__()
-        self.experiment = experiment
-        self.shot = shot
-        self.edition = edition
-        self.equ = []
-        
-        #load shotfile with 2d quantities
-        self.equ.append(dd.shotfile(diag, shot, experiment, edition))
-
-        #shotfiles with 1d quantities
-        diags_1d =  {'EQE':'GQE','FPQ':'FPK','IDE':'IDG','EQI':'GQI','EQH':'GQH',
-                     'FPP':'GPI','EQR':'FPG'}
-        
-        if diag in diags_1d:
-            self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
-
-        #shotfile with the errorbars
-        if diag == 'IDE': 
-            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
-        
-        if diag == 'MGS':
-            raise Warning('MGS is not supported yet')
-        
-        
-        self.eq = kk.kk()
-        self.eq.Open(shot, experiment, diag, edition)
-        self.times = self.equ[0]('time').data
-
-    def __del__(self):
-        for key in self.__cache.keys():
-            del self.__cache[key]
-
-    def getAvailableTimes(self):
-        return self.times
-
-    #TODO add much more!! from cdf2tre
- 
-    __plotNames = ['profile-pressure', 'profile-q', 'contour-pfl',
-                   'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q']
-
-    def getAvailablePlotNames(self):
-        return self.__plotNames
-
-    __cache = {}
-
-    def getData(self, name, workaround_time=None):
-        
-        
-        if name == 'pfm' and workaround_time != None:
-            return self.eq.get_pfm(workaround_time)
-        
-
-        #workaround for the loading of the data from the equilibrium shotfiles
-        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self.__cache:
-            
-            tvec = self.getData('time').data
-
-            t_index = slice(None,len(tvec))
-
-            if name in ['Pres','Jpol']: 
-                prof = self.getData(name)[t_index,::2] 
-            else:
-                prof = self.getData(name)[t_index,:]
-
-            psiAx, psiSep = self.getData('PFxx').data[None,t_index, :2].T
-            phi = self.getData('PFL')[t_index,:]
-            rho = np.sqrt(np.abs((phi-psiAx).data/(psiSep-psiAx)))
-            ind = np.argsort(rho,axis=1)
-            
-            for i,ii in enumerate( ind): prof.data[i] = prof.data[i][ii]
-            for i,ii in enumerate( ind): rho[i] = rho[i][ii]
-
-            
-            prof.area  = Data()
-            prof.area.data = rho
-            prof.time = tvec
-            
-            self.__cache[name] = prof
-
-        
-        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and name in self.__cache:
-            if np.isfinite(workaround_time):
-                prof = self.__cache[name]
-                t_index = np.argmin(np.abs(prof.time-workaround_time))
-                prof_ = deepcopy(prof)
-                prof_.data = prof.data[t_index]
-                prof_.time = prof.time[t_index]
-                prof_.area.data = prof.area.data[t_index]
-                return prof_
-
-        
-        
-        
-        if name not in self.__cache:
-            self.__cache[name] = None   #returned in the case that nothing was found
-            for diag in self.equ:
-                if  name in diag.getObjectNames().values():
-                    self.__cache[name] = copy(diag(name))
-                    break
-  
-        return self.__cache[name]
-
-    def getSinglePlotForTimePoint(self, name, t):
-        if 'timecontour' in name:
-            if name == 'timecontour-pressure':
-                p = self.getData('pres')
-                if p is None:
-                    p = self.getData('Pres',np.nan)
-                   
-                return PlotBunch(kind='timecontour', data=[{'x':p.time, 
-                    'y': p.area.data[0], 'z':p.data},{'x': t, 'c': 'k'}])
-            
-            elif name == 'timecontour-q':
-                q = self.getData('q_sa')
-                if q is None:
-                    q = self.getData('Qpsi',np.nan)
-                return PlotBunch(kind='timecontour', 
-                    data=[{'x':q.time, 'y': q.area.data[0], 'z':np.abs(q.data),
-                           'levels':[1, 1.5, 2, 3, 4, 5]},{'x': t, 'c': 'k'}])
-
-        elif 'contour' in name:
-            t_index = np.abs(self.times - t).argmin()
-            #Ri = self.getData('Ri').data[t_index]
-            #Zj = self.getData('Zj').data[t_index]
-            #pfm = self.getData('PFM').data[t_index]
-            #embed()
-            
-            tmp = self.getData('pfm', t)
-            Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
-
-            psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
-            #embed()
-            
-            #ikCAT = self.getData('ikCAT').data
-            #PFxx = self.getData('PFxx').data
-            #sep_ind = np.array([2,0,3,1])[ikCAT-1]
-            #psiAx,psiSep = PFxx[0,:], PFxx[sep_ind,np.arange(len(mag))]        
-            
-            data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx}]
-            if 'rho' in name:
-                pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
-                data[0].update({'z': pfm,'levels':np.arange(0,2,.1)})
-            elif 'pfl' in name:
-                pfm = pfm - psiSep
-                lvls = np.arange(pfm.min(), pfm.max(), 0.05)
-                lvls = np.insert(lvls, 0, psiSep)
-                data[0].update({'z': pfm,'levels':lvls})
-
-            return PlotBunch(kind='contour', data=data)
-
-        elif 'trace' in name:
-            if name == 'trace-Wmhd':
-                wmhd = self.getData('Wmhd')
-                
-                #if wmhd == None:
-                    #return 
-                wmhdunc = self.getData('Wmhd_unc')
-                
-                data=[{'x': wmhd.time, 'y': wmhd.data, 'ls': '-'},{'x': t,'c': 'k'}]
-                
-                if not wmhdunc is  None:
-                    data.extend([{'x': wmhd.time, 'y': wmhd.data+wmhdunc.data, 'ls': '--'},
-                            {'x': wmhd.time, 'y': np.maximum(0,wmhd.data-wmhdunc.data), 'ls': '--'}])
-                    
-                return PlotBunch(kind='trace',data=data)
-            if name == 'trace-li':
-                pass
-            if name == 'trace-beta':
-                pass
-            if name == 'trace-Rmag':
-                pass
-            if name == 'trace-Zmag':
-                pass
-            
-            
-
-
-        elif 'profile' in name:
-            if name == 'profile-q':
-                
-                
-                qsa = self.getData('q_sa')
-                if qsa is None:
-                    qsa = self.getData('Qpsi',t)                    
-                else:
-                    qsa = qsa(tBegin=t, tEnd=t)
-   
-                
-                ind = np.diff(np.abs(qsa.data)) > 0 #detect resonance surfaces only in the region of positive shear
-                ind[-1] = True
-                rho = qsa.area.data[ind]
-                rho[0] = np.nan  #diffifulties with elevated profiles and q=1
-                q = abs(qsa.data)
-                
-                XIQ1  = np.interp(1,q[ind],rho,left=np.nan)
-                XIQ2  = np.interp(2,q[ind],rho,left=np.nan)
-                XIQ3_2= np.interp(1.5,q[ind],rho,left=np.nan)
-                #XIQ3  = np.interp(3,q[ind],rho,left=np.nan)
-                
-                
-                data=[{'x':  qsa.area.data, 'y': q},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
-                      {'y': 1,'c':'k','alpha':.3}, {'y': 2,'c':'k','alpha':.3},{'y': 1.5,'c':'k','alpha':.3}]
-                
-                qsap = self.getData('q_sa_plu')
-                qsam = self.getData('q_sa_min')
-                if not qsap is None and not qsam is None:
-                    qsap = qsap(tBegin=t, tEnd=t)
-                    qsam = qsam(tBegin=t, tEnd=t)
-                    data.extend([{'x': qsap.area.data, 'y': np.abs(qsap.data), 'ls': '--'},
-                                {'x': qsam.area.data, 'y': np.abs(qsam.data), 'ls': '--'}])
-   
-                return PlotBunch(data=data,setting={'ylim':(0, 10),'xlim':(0,1)})
-                
-            elif name == 'profile-pressure':
-
-                p = self.getData('pres')
-                if p is None:
-                    p = self.getData('Pres',t)
-                else:
-                    p = p(tBegin=t, tEnd=t)
-         
-                punc = self.getData('pres_unc')
-                maxpres = self.getData('Pres').data.max()*1.3
-                
-                data=[{'x': p.area.data, 'y': p.data, 'ls': '-'},]
-                
-                if not punc is None:
-                    punc = punc(tBegin=t, tEnd=t)
-                    data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--'},
-                                {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--'}])
-                
-                return PlotBunch(data=data, setting={'ylim':(0, maxpres),'xlim':(0,1)})
-            
-            elif name == 'profile-current':
-                pass
-                #TODO how to get a current profile?? 
-
-    def getPlotsForTimePoint(self, names, t):
-        
-        #toReturn = {name:self.getSinglePlotForTimePoint(name, t) for name in names if name in self.__plotNames}
-        
-        toReturn = {}
-        for name in names:
-            if name in self.__plotNames:
-                try:
-                    toReturn[name] = self.getSinglePlotForTimePoint(name, t)
-                except Exception as e:
-                    print e
-                    
-        return toReturn
-
 
 class StatusBar(tk.Frame):
     def __init__(self, master):
@@ -376,9 +105,9 @@ class View(tk.Tk):
         filemenu.add_command(label="Exit", command=self.Quit)
         menubar.add_cascade(label="File", menu=filemenu)
 
-        viewmenu = tk.Menu(menubar, tearoff=0)
-        viewmenu.add_command(label="Select plot items...", command=self.viewSettings)
-        menubar.add_cascade(label="View", menu=viewmenu)
+        viewmenuNeu = tk.Menu(menubar, tearoff=0)
+        viewmenuNeu.add_command(label='Select Plot Items', command= self.Selection)
+        menubar.add_cascade(label="View", menu=viewmenuNeu)
 
         debugmenu = tk.Menu(menubar, tearoff=0)
         debugmenu.add_command(label="IPython.embed()", command=self.embed)
@@ -388,55 +117,61 @@ class View(tk.Tk):
 
         self.statusbar = StatusBar(self)
 
-        topframe = tk.Frame(self)
-        topframe.pack(side=tk.TOP, fill=tk.X)
+        self.topframe = tk.Frame(self)
+        self.topframe.pack(side=tk.TOP, fill=tk.X)
         
         def_set = (('Diag',4),('Exp',7),('Shot',5),('Ed',2))
         
         for name,width in def_set:
                 
-            label = tk.Label(topframe, text=' '+name+':')
+            label = tk.Label(self.topframe, text=' '+name+':')
             label.pack(side=tk.LEFT)
-            setattr(self, 'entry'+name, tk.Entry(topframe, width=width))
+            setattr(self, 'entry'+name, tk.Entry(self.topframe, width=width))
             entry = getattr(self,'entry'+name)
             entry.pack(side=tk.LEFT)
             entry.insert(0, getattr(self.settings,'last'+name))
             
  
-        #topframe2 = tk.Frame(self)
-        #topframe2.pack(side=tk.TOP, fill=tk.X)
+        #self.topframe2 = tk.Frame(self)
+        #self.topframe2.pack(side=tk.TOP, fill=tk.X)
         
         #for name,width in def_set:
                 
-            #label = tk.Label(topframe2, text=' '+name+':')
+            #label = tk.Label(self.topframe2, text=' '+name+':')
             #label.pack(side=tk.LEFT)
-            #setattr(self, 'entry'+name, tk.Entry(topframe2, width=width))
+            #setattr(self, 'entry'+name, tk.Entry(self.topframe2, width=width))
             #entry = getattr(self,'entry'+name)
             #entry.pack(side=tk.LEFT)
             #entry.insert(0, getattr(self.settings,'last'+name))
             
 
-        button_load = tk.Button(topframe, text="Load", command=self.onLoadButtonClick)
+        button_load = tk.Button(self.topframe, text="Load", command=self.onLoadButtonClick)
         button_load.pack(side=tk.LEFT)
 
-        button_backward = tk.Button(topframe, text="<", command=self.onPrevButtonClick)
+        button_backward = tk.Button(self.topframe, text="<", command=self.onPrevButtonClick)
         button_backward.pack(side=tk.LEFT)
 
         self.playString = u"  \u25B6 "
         self.pauseString = u"\u275A\u275A"
-        self.playButton = tk.Button(topframe, text=self.playString, command=self.onPlayButtonClick)
+        self.playButton = tk.Button(self.topframe, text=self.playString, command=self.onPlayButtonClick)
         self.playButton.pack(side=tk.LEFT)
 
-        button_forward = tk.Button(topframe, text=">", command=self.onNextButtonClick)
+        button_forward = tk.Button(self.topframe, text=">", command=self.onNextButtonClick)
         button_forward.pack(side=tk.LEFT)
 
-        self.timeslider1 = tk.Scale(topframe, orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
-        self.timeslider1.pack(side=tk.LEFT, fill=tk.X, expand=1)
+        #self.timeslider = tk.Scale(self.topframe, orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
+        self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0)
+        self.timeslider.bind("<ButtonRelease-1>", self.scaleUpdated)
+        #embed()
+        self.timeslider.pack(side=tk.LEFT, fill=tk.X, expand=1)
 
         self.viewfig = Figure()
         self.canvas = FigureCanvasTkAgg(self.viewfig, master=self)
         self.canvas.show()
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+        self.bind('<Control-q>', self.Quit)
+        self.bind('<space>', self.onPlayButtonClick)
+        self.bind('<Return>', self.onLoadButtonClick)
 
         toolbar = NavigationToolbar2TkAgg(self.canvas, self)
         toolbar.update()
@@ -455,46 +190,109 @@ class View(tk.Tk):
         #self.onLoadButtonClick()
         #self.viewSettings()
         
-        self.cid1 = self.viewfig.canvas.mpl_connect('button_press_event',self.MouseInteraction)
+        #self.cid1 = self.viewfig.canvas.mpl_connect('button_press_event',self.MouseInteraction)
         self.cid2 = self.viewfig.canvas.mpl_connect('scroll_event',self.MouseWheelInteraction)
         #self.cid3 = self.viewfig.canvas.mpl_connect('key_press_event',   self.on_key)
         #self.cid4 = self.viewfig.canvas.mpl_connect('key_release_event', self.off_key)
         
-        self.viewfig.canvas.mpl_connect('button_press_event', fconf.on_click)
+        self.viewfig.canvas.mpl_connect('button_press_event', fconf_on_click)
 
-  
-        createToolTip(self.timeslider1,'Can be controlled also by mouse wheel')
-        
-        
+        #createToolTip(self.timeslider,'Can be controlled also by mouse wheel')
         createToolTip(button_backward,'Go backward by one timestep, (also right mouse button)')
-        createToolTip(self.playButton,'Play,Stop, also controlled by mouse middle button')
+        createToolTip(self.playButton,'Play,Stop, also controlled by mouse middle button and <space>')
         createToolTip(button_forward,'Go forward by one timestep, (also left mouse button)')
-            
 
-    def Quit(self):
+    
+    def Selection(self):
+
+        if self.backend == None:
+            print 'Please load Shotfile first.'
+            return
+        if hasattr(self, 'toplevel'):
+            self.toplevel.destroy()
+        self.toplevel = tk.Toplevel(self)
+        self.toplevel.resizable(0,0)
+        self.toplevel.wm_title('Selection')
+        n = ttk.Notebook(self.toplevel)
+        f1 = ttk.Frame(n)
+        f2 = ttk.Frame(n)
+        f3 = ttk.Frame(n)
+        f4 = ttk.Frame(n)
+        f5 = ttk.Frame(n)
+        n.add(f1, text='Profiles')
+        n.add(f2, text='Residua')
+        n.add(f3, text='Traces')
+        n.add(f4, text='Timecontours')
+        n.add(f5, text='Contours')
+        selected = self.settings.selectedPlots
+        available = self.backend.getAvailablePlotNames()
+        boxvars = {name:tk.IntVar() for name in available}
+        def updatePlotSelection(name_=None, frame=None, row_=None):
+            self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
+            j = len(self.settings.selectedPlots)
+            #if name_ in self.settings.selectedPlots:
+            self.makeentry(name_, self.settings.selectedPlots, frame, j, row_)
+            self.preparePlots()
+            self.updatePlots()
+
+        for i, name_ in enumerate(available):
+            kind, parameter = name_.split('-')
+            if kind == 'profile':
+                cb = tk.Checkbutton(f1, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f1, i))
+            if kind == 'res(profile)':
+                cb = tk.Checkbutton(f2, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f2, i))
+            if kind == 'trace':
+                cb = tk.Checkbutton(f3, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f3, i))
+            if kind == 'timecontour':
+                cb = tk.Checkbutton(f4, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f4, i))
+            if kind == 'contour':
+                cb = tk.Checkbutton(f5, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f5, i))
+
+            if name_ in selected: 
+                boxvars[name_].set(1)
+                cb.select()
+            
+            cb.grid(row = i, column=1, sticky=tk.W)
+
+        n.grid()
+
+    def makeentry(self, name, checked, f, j, i):        # TODO entries beneath selectable options for decide in which plot they should be displayed
+        return
+        if name in checked:
+            setattr(self, 'entry'+name, tk.Entry(f, width=2))
+            entry = getattr(self,'entry'+name)
+            entry.grid(row=i, column=2)
+            entry.insert(0, j)
+        else:
+            if hasattr(self, 'entry'+name):
+                entry_ = getattr(self,'entry'+name)
+                entry_.grid_forget()
+
+    def Quit(self, event=None):
         sys.exit()
 
     def onResize(self, event):
-        if event.widget == self:  # store window size
+        if event.widget == self:
             self.settings.windowSize = "%ix%i" % (event.width, event.height)
+            # TODO adjusting tickintervals when resize timeslider
 
     playing = False
 
     def onPrevButtonClick(self):
-        res = self.timeslider1.config()['resolution'][-1]
-        from_ = self.timeslider1.config()['from'][-1]
-        if not self.timeslider1.get() - res < from_:
-            self.timeslider1.set(self.timeslider1.get()-res)
+        res = self.timeslider.config()['resolution'][-1]
+        from_ = self.timeslider.config()['from'][-1]
+        if not self.timeslider.get() - res < from_:
+            self.timeslider.set(self.timeslider.get()-res)
             self.updatePlots()
 
     def onNextButtonClick(self):
-        res = self.timeslider1.config()['resolution'][-1]
-        to = self.timeslider1.config()['to'][-1]
-        if not self.timeslider1.get() + res > to:
-            self.timeslider1.set(self.timeslider1.get()+res)
+        res = self.timeslider.config()['resolution'][-1]
+        to = self.timeslider.config()['to'][-1]
+        if not self.timeslider.get() + res > to:
+            self.timeslider.set(self.timeslider.get()+res)
             self.updatePlots()
 
-    def onPlayButtonClick(self):
+    def onPlayButtonClick(self, event=None):
         btn = self.playButton
         if btn.config()['text'][-1] == self.playString:
             btn.configure(text=self.pauseString)
@@ -510,54 +308,41 @@ class View(tk.Tk):
         if not self.playing:
             self._job = None
             return
-        res = self.timeslider1.config()['resolution'][-1]
-        to = self.timeslider1.config()['to'][-1]
-        from_ = self.timeslider1.config()['from'][-1]
-        if self.timeslider1.get() + res < to:
-   
-            self.timeslider1.set(self.timeslider1.get() + res)
+        res = self.timeslider.config()['resolution'][-1]
+        to = self.timeslider.config()['to'][-1]
+        from_ = self.timeslider.config()['from'][-1]
+        if self.timeslider.get() + res < to:
+            self.timeslider.set(self.timeslider.get() + res)
             self.updatePlots()
             self._job = self.after(10, self.playLoop)
 
-    def onLoadButtonClick(self):
+    def onLoadButtonClick(self, event=None):
         self.settings.lastDiag = self.entryDiag.get()
         self.settings.lastExp = self.entryExp.get()
         self.settings.lastShot = self.entryShot.get()
         self.settings.lastEd = self.entryEd.get()
         self.load(self.entryDiag.get(), self.entryExp.get(), 
                   self.entryShot.get(), self.entryEd.get())
-        
-        
-    def MouseInteraction(self,event):
-        pass
-        #if  event.button == 1:
-            #self.onNextButtonClick()
-        #elif event.button == 2:
-            #self.onPlayButtonClick()
-        #elif event.button == 3:
-            #self.onPrevButtonClick()
 
     def MouseWheelInteraction(self,event):
-        
-        res = self.timeslider1.config()['resolution'][-1]
-        to = self.timeslider1.config()['to'][-1]
-        from_ = self.timeslider1.config()['from'][-1]
-        
-        time = max(from_ ,min(to,self.timeslider1.get()+res*event.step))
-        
-        self.timeslider1.set(time)
+        res = self.timeslider.config()['resolution'][-1]
+        to = self.timeslider.config()['to'][-1]
+        from_ = self.timeslider.config()['from'][-1]
+        time = max(from_ ,min(to,self.timeslider.get()+res*event.step))
+        self.timeslider.set(time)
         self.updatePlots()
-
-        
 
     structures = []
     loaded = False
-    def load(self,diag, exp, shot, edition):    
+
+    def load(self,diag, exp, shot, edition):   
+        self.loaded = False
         self.status('Loading %s...'%shot)
         self.backend = ShotfileBackend(diag,exp, int(shot), int(edition))
         t = self.backend.getAvailableTimes()
-        self.timeslider1.configure(from_=t.min(), to=t.max(), resolution=(t[-1]-t[0])/len(t))
-        self.timeslider1.set(t.min())
+        self.timeslider.configure(from_=t.min(), to=t.max(), resolution=(t[-1]-t[0])/len(t))
+        # EXAMPLE: 3 tickintervals: self.timeslider.configure(tickinterval=(t[-1]-t[0])/3)
+        self.timeslider.set(t.min())
 
         eq = kk.kk()
         eq.Open(int(shot), 'AUGD', 'YGC')
@@ -567,41 +352,13 @@ class View(tk.Tk):
 
         self.preparePlots()
         if not self.loaded: self.updatePlots()
-
         self.loaded = True
 
-        
-    def viewSettings(self):
-        if self.backend == None:
-            return
-        selected = self.settings.selectedPlots
-        available = self.backend.getAvailablePlotNames()
-        t = tk.Toplevel(self)
-        t.resizable(0,0)
-        t.wm_title("View settings")
-        psFrame = tk.LabelFrame(t, text="Plot selection", bd=1, relief=tk.SUNKEN)
-        psFrame.pack(side=tk.LEFT)#,fill=tk.X)
+    def preparePlots(self):
 
-        boxvars = {name:tk.IntVar() for name in available}
-
-        def updatePlotSelection():
-            self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
-            self.preparePlots()
-            self.updatePlots()
-
-        for i, name in enumerate(available):
-            t, n = name.split('-')
-            cb = tk.Checkbutton(psFrame, text="%s (%s)"%(n, t), 
-                variable=boxvars[name], onvalue=1, offvalue=0, command=updatePlotSelection)
-            if name in selected: 
-                boxvars[name].set(1)
-                cb.select()
-            cb.grid(row=i, sticky=tk.W)
-
-    def preparePlots(self): 
         self.viewfig.clf()
         self.__firstplot = True
-
+        plt.rc('legend',**{'fontsize':'12'})
         s = ' '.join(self.settings.selectedPlots)
         Nc = s.count('contour') - s.count('timecontour')
         Np = s.count('profile')
@@ -613,8 +370,7 @@ class View(tk.Tk):
                 break
             Nh += 1
 
-        gs = gridspec.GridSpec(Nh+Nt, Nw+Nc)
-        #print 'wxh', Nw+Nc, Nh+Nt
+        gs = gridspec.GridSpec(Nh+Nt, Nw+Nc) if Np+Nt != 0 else gridspec.GridSpec(Nw, Nc)
         Cc, Cp, Ct = 0, 0, 0
         self.axes = {}
         for i, name in enumerate(self.settings.selectedPlots):
@@ -622,18 +378,17 @@ class View(tk.Tk):
                 Ct += 1
                 self.axes[name] = self.viewfig.add_subplot(gs[-Ct, :-Nc]) if Nc != 0 else \
                                   self.viewfig.add_subplot(gs[-Ct, :])
-                #print name, '-%i,:-%i'%(Ct, Nc)
             elif 'contour' in name:
                 Cc += 1
                 self.axes[name] = self.viewfig.add_subplot(gs[:, -Cc])
-                #print name, ':,-%i'%Cc
-            else:  #  simple plot???
+            else:
                 Cp += 1
                 yi = (Cp - 1)%Nw
                 xi = int((Cp-1)/Nw)
                 self.axes[name] = self.viewfig.add_subplot(gs[xi,yi])
-                #print name, '%i,%i'%(xi,yi)
 
+        if len(self.axes) > 0:
+            self.viewfig.tight_layout(pad=3.5)  
         self.canvas.draw()
 
     __firstplot = True
@@ -644,13 +399,13 @@ class View(tk.Tk):
         if self.backend == None:
             return
 
-        if self.__firstplot: 
+        if self.__firstplot:  
             self.__linecache = {}
 
-        t = float(self.timeslider1.get())
-
+        t = float(self.timeslider.get())
         plots = self.backend.getPlotsForTimePoint(self.settings.selectedPlots, t)
-        #embed()
+        # performance is fine until here, so optimise what comes next
+
         for i, key in enumerate(self.axes):
             ax = self.axes[key]
             
@@ -677,35 +432,41 @@ class View(tk.Tk):
                     ax.set_xlim(self.backend.getAvailableTimes().min(), 
                                 self.backend.getAvailableTimes().max())
             
-            #TODO dít ten forcyklus ven?? ušetří se pak pár řádků? 
+            #TODO dít ten forcyklus ven?? ušetří se pak pár řádků? == Data for the cycle out ?? then saving a few lines
             if ps.kind in ('profile', 'trace'):
                 tmp = None
                 if self.__firstplot:
                     ax.grid('on')
-                    
-                
+
                 for j, p in enumerate(ps.data):
 
                     cachekey = '%i%s%i'%(i, key, j)
-
                     x = p.pop('x') if 'x' in p else ax.get_xlim()
                     y = p.pop('y') if 'y' in p else ax.get_ylim()
+                    #yerr = p.pop('yerr') if 'yerr' in p else None
+                    exc = p.pop('exc') if 'exc' in p else False
 
                     if np.size(x) == 1: x = [x,x]
                     if np.size(y) == 1: y = [y,y]
-                    
+
                     if cachekey in self.__linecache:
                         self.__linecache[cachekey].set_data(x,y)
-                        
+
                     else:
-                        #c = tmp.get_color() if tmp else 'b'
                         c = 'b'
-                        label = key.split('-')[-1] if '-' in key and j==0 else None
-                        tmp, =  ax.plot(x, y, label=label,color=c, **p)
-        
+                        if not exc: #'normal' profiles and traces
+                            label = key.split('-')[-1] if '-' in key and j==0 else None
+                            tmp, =  ax.plot(x, y, label=label,color=c, **p)
+                            #for errorbars in constraints
+                            '''if yerr is not None:
+                                tmp, = ax.errorbar(x,y,yerr=yerr, label=label,color=c, **p)
+                            else:
+                                tmp, =  ax.plot(x, y, label=label,color=c, **p)'''
+                        else:       #exceptions like residua
+                            tmp, =  ax.plot(x, y, **p)
+
                         self.__linecache[cachekey] = tmp
-      
-                        
+
                         
             elif ps.kind == 'timecontour':
                 if self.__firstplot:
@@ -722,18 +483,23 @@ class View(tk.Tk):
 
                         if cachekey in self.__linecache:
                             self.__linecache[cachekey].set_data(x,y)
+                            
                         else:
                             tmp, = ax.plot(x, y,color='k', **p)
                             self.__linecache[cachekey] = tmp
                             
+
+                            
                     else:
                         x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
+
                         if not cachekey in self.__linecache:
                             tmp = ax.contour(x, y, z.T, 20,**p)
-                            ax.set_title(key.split('-')[-1])   #BUG it must be done be set_text? 
+                            ax.set_title(key.split('-')[-1])
                             self.__linecache[cachekey] = tmp
                             
-            elif ps.kind == 'contour':
+                            
+            elif ps.kind == 'contour':      #pretty expensive
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
                     x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
@@ -750,27 +516,28 @@ class View(tk.Tk):
                         z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
                         p['levels'] = 1- p['levels']
 
-                                        
                     self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+
 
             elif ps.kind == 'text':
                 pass
             elif ps.kind == 'fill':
                 pass
-            
-            
-            if 'contour' not in ps.kind and self.__firstplot: 
+
+            if 'contour' not in ps.kind and self.__firstplot:
                 leg = ax.legend(loc='upper right', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
 
+                
 
-            
-        self.__firstplot = False  #make separate for function for the first plot and other functions
-        self.canvas.draw()
+        self.__firstplot = False
+
+        self.canvas.draw()      # perfomance depents on if its drawn
     
     def scaleUpdated(self, event):
-        if not self.playing:
-            self._job = self.after(200, self.updatePlots)
+        self.updatePlots()
+        #if not self.playing:
+        #    self._job = self.after(200, self.updatePlots)
         
 
 
