@@ -25,7 +25,7 @@ class Settings(object):
             self._new()
 
     startDict = {'selectedPlots':['profile-pressure', 'profile-q', 'contour-rho','trace-Wmhd'],
-                'lastDiag': 'IDE','lastShot': '31163','lastExp': 'ABOCK','lastEd': '0','windowSize': '800x600'}
+                'lastDiag': 'IDE','lastShot': '31113','lastExp': 'AUGD','lastEd': '0','windowSize': '800x600'}
 
     def _new(self):  # some default settings
         self.__dict__.update(self.startDict)

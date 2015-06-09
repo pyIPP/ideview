@@ -1,21 +1,36 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
-import sys, numpy as np, matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-import matplotlib.gridspec as gridspec
-from matplotlib.figure import Figure
-from IPython import embed
-sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
-from lib.settings import Settings
-from lib.backend import ShotfileBackend
+import os
+import platform
+import sys
 
-import kk_abock as kk
-sys.path.append('/afs/ipp/home/g/git/python/repository/')
-from functools import partial
+if platform.system() != 'Linux':
+    print 'Please use "toksXX". i.e. "ssh toksXX" where "XX" means numbers between 01-06'
+    sys.exit()
+
+try:
+    import sys, numpy as np, matplotlib.pyplot as plt
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+    import matplotlib.gridspec as gridspec
+    from matplotlib.figure import Figure
+    from IPython import embed
+    sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
+    from lib.settings import Settings
+    from lib.backend import ShotfileBackend
+
+    import kk_abock as kk
+    sys.path.append('/afs/ipp/home/g/git/python/repository/')
+    from functools import partial
 
 
-from tooltip import createToolTip
+    from tooltip import createToolTip
+
+except ImportError, e:
+    print e
+    print 'Did you do "module load python27/basic"?'
+    sys.exit()
+
 def fconf_on_click(event):
     """
     Enlarge or restore the selected axis.
@@ -226,7 +241,9 @@ class View(tk.Tk):
         n.add(f5, text='Contours')
         selected = self.settings.selectedPlots
         available = self.backend.getAvailablePlotNames()
-        boxvars = {name:tk.IntVar() for name in available}
+        boxvars = {}
+        for name in available:
+            boxvars[name] = tk.IntVar()
         def updatePlotSelection(name_=None, frame=None, row_=None):
             self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
             j = len(self.settings.selectedPlots)
@@ -453,7 +470,7 @@ class View(tk.Tk):
                         self.__linecache[cachekey].set_data(x,y)
 
                     else:
-                        c = p['c'] if 'c' in p else p['color'] if 'color' in p else 'b'
+                        c = 'b'
                         if not exc: #'normal' profiles and traces
                             label = key.split('-')[-1] if '-' in key and j==0 else None
                             tmp, =  ax.plot(x, y, label=label,color=c, **p)
