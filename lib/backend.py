@@ -34,16 +34,24 @@ class ShotfileBackend(Backend):
         #load shotfile with 2d quantities
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
 
+        #shotfile with the errorbars
+        try:
+            if diag == 'IDE': 
+                idf_ed = self.equ[-1].getParameter('idefg_ed', 'idf_ed').data
+                idg_ed = self.equ[-1].getParameter('idefg_ed', 'idg_ed').data
+                self.equ.append(dd.shotfile('IDF', shot, experiment, idf_ed))
+                self.equ.append(dd.shotfile('IDG', shot, experiment, idg_ed))
+        except Exception as e:
+            print 'WARNING! Use the old edition.'
+            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
+            self.equ.append(dd.shotfile('IDG', shot, experiment, edition))
+
         #shotfiles with 1d quantities
-        diags_1d =  {'EQE':'GQE','FPQ':'FPK','IDE':'IDG','EQI':'GQI','EQH':'GQH',
+        diags_1d =  {'EQE':'GQE','FPQ':'FPK','EQI':'GQI','EQH':'GQH',
                      'FPP':'GPI','EQR':'FPG'}
         
         if diag in diags_1d:
             self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
-
-        #shotfile with the errorbars
-        if diag == 'IDE': 
-            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
         
         if diag == 'MGS':
             raise Warning('MGS is not supported yet')
@@ -279,7 +287,7 @@ class ShotfileBackend(Backend):
             #Zj = self.getData('Zj').data[t_index]
             #pfm = self.getData('PFM').data[t_index]
             #embed()
-            
+            print t_index
             tmp = self.getData('pfm', t)
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
