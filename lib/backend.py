@@ -287,7 +287,6 @@ class ShotfileBackend(Backend):
             #Zj = self.getData('Zj').data[t_index]
             #pfm = self.getData('PFM').data[t_index]
             #embed()
-            print t_index
             tmp = self.getData('pfm', t)
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
