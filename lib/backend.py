@@ -34,24 +34,16 @@ class ShotfileBackend(Backend):
         #load shotfile with 2d quantities
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
 
-        #shotfile with the errorbars
-        try:
-            if diag == 'IDE': 
-                idf_ed = self.equ[-1].getParameter('idefg_ed', 'idf_ed').data
-                idg_ed = self.equ[-1].getParameter('idefg_ed', 'idg_ed').data
-                self.equ.append(dd.shotfile('IDF', shot, experiment, idf_ed))
-                self.equ.append(dd.shotfile('IDG', shot, experiment, idg_ed))
-        except Exception as e:
-            print 'WARNING! Use the old edition.'
-            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
-            self.equ.append(dd.shotfile('IDG', shot, experiment, edition))
-
         #shotfiles with 1d quantities
-        diags_1d =  {'EQE':'GQE','FPQ':'FPK','EQI':'GQI','EQH':'GQH',
+        diags_1d =  {'EQE':'GQE','FPQ':'FPK','IDE':'IDG','EQI':'GQI','EQH':'GQH',
                      'FPP':'GPI','EQR':'FPG'}
         
         if diag in diags_1d:
             self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
+
+        #shotfile with the errorbars
+        if diag == 'IDE': 
+            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
         
         if diag == 'MGS':
             raise Warning('MGS is not supported yet')
@@ -61,13 +53,13 @@ class ShotfileBackend(Backend):
         self.times = self.equ[0]('time').data
 
     def __del__(self):
-        for key in self.__cache.keys():
-            del self.__cache[key]
+        for key in self._cache.keys():
+            del self._cache[key]
 
     def getAvailableTimes(self):
         return self.times
  
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi','trace-Iext']
+    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
@@ -84,11 +76,15 @@ class ShotfileBackend(Backend):
                 mes = name
                 MES = self.getData(mes)
             if not onlyMES:
-                unc = '%s_unc' %name
-                UNC = self.getData(unc)
-                if UNC is None:
-                    unc = '%sunc' %name
+                if name == 'betpol':
+                    UNC = self.getData('betp_unc')
+                else:
+                    unc = '%s_unc' %name
                     UNC = self.getData(unc)
+                    if UNC is None:
+                        unc = '%sunc' %name
+                        UNC = self.getData(unc)
+
                 fit = '%s_fit' %name
                 FIT = self.getData(fit)
                 if FIT is None:
@@ -98,6 +94,9 @@ class ShotfileBackend(Backend):
             if MES.area is None:
                 lookforab = '%s_rp'%name
                 MES.area = self.getData(lookforab)
+                if name == 'q_sa':
+                    MES.area = self.getData('rhopol_q')
+                    
                 if not onlyMES and FIT is not None and FIT.area is None:
                     FIT.area = self.getData(lookforab)
             if onlyMES:
@@ -117,20 +116,47 @@ class ShotfileBackend(Backend):
             shape = MES.area.data.shape
             MES_Area_data = MES.area.data[0 if shape[0]==1 else t_ind]
             MES_Data = MES.data[t_ind]
-            data=[{'x': MES_Area_data, 'y': MES_Data, 'ls':'-'}]
+            if name != 'q_sa':
+                data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-'}]
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
-                    data[0].update({'c':'k', 'marker':'+', 'mew':1.2, 'ms':10, 'ls':''})
-                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'marker':'_', 'mew':1.2, 'ms':10, 'ls':'', 'c':'k'},
-                                 {'x': MES_Area_data, 'y': MES_Data - UNC_Data, 'marker':'_', 'mew':1.2, 'ms':10, 'ls':'', 'c':'k'}])
+                    data[0].update({'c':'k'})
+                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data,'marker':'_', 'ls':'', 'c':'k'},
+                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'marker':'_', 'ls':'', 'c':'k'}])
                 else:
-                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls': '--'},
-                                 {'x': MES_Area_data, 'y': MES_Data - UNC_Data, 'ls': '--'}])
+                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls':'--'},
+                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'ls': '--'}])
             if (not FIT is None) and fit:
                 FIT_Area_data = FIT.area.data[0 if shape[0]==1 else t_ind]
                 FIT_Data = FIT.data[t_ind]
-                data.append({'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-', 'label':'fit', 'exc':True})
+                data.extend([{'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-'}])
+            if name == 'q_sa':
+                qsa = MES
+                MIN = 0
+                MAX = 10
+                rho = qsa.area.data[t_ind]
+                rho[0] = np.nan  #diffifulties with elevated profiles and q=1
+                q = abs(qsa.data)
+                
+                XIQ1  = np.interp(1,q[t_ind],rho,left=np.nan)
+                XIQ2  = np.interp(2,q[t_ind],rho,left=np.nan)
+                XIQ3_2= np.interp(1.5,q[t_ind],rho,left=np.nan)
+                #XIQ3  = np.interp(3,q[ind],rho,left=np.nan)
+
+                data = [{'x':  qsa.area.data[t_ind], 'y': q[t_ind]},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
+                      {'y': 1,'c':'k','alpha':.3}, {'y': 2,'c':'k','alpha':.3},{'y': 1.5,'c':'k','alpha':.3}]
+                
+                qsap = self.getData('q_sa_plu')
+                qsap.area = self.getData('rhopol_q')
+                qsam = self.getData('q_sa_min')
+                qsam.area = self.getData('rhopol_q')
+                if not qsap is None and not qsam is None:
+                    #qsap = qsap(tBegin=t, tEnd=t)
+                    #qsam = qsam(tBegin=t, tEnd=t)
+                    #embed()
+                    data.extend([{'x': qsap.area.data[t_ind], 'y': np.abs(qsap.data)[t_ind], 'ls': '--'},
+                                {'x': qsam.area.data[t_ind], 'y': np.abs(qsam.data)[t_ind], 'ls': '--'}])
             return PlotBunch(data=data, setting={'ylim':(MIN, MAX)})
         except Exception as e:
             print e,  '%s-profile is not available in that shot for t=%s'%(name, t)
@@ -163,11 +189,22 @@ class ShotfileBackend(Backend):
         try:
             MES, FIT, UNC = self.lookfordata(name)
             if not 'signalGroup' in str(type(MES)):
-                data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
-                if not UNC is  None:
-                    data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
-                            {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
-                return PlotBunch(kind='trace',data=data)
+                qlist = ['q0', 'q25', 'q50', 'q75', 'q95']
+                if name in qlist:
+                    q = abs(MES.data)
+                    uncplus = '%s_plus'%name
+                    UNCplus = self.getData(uncplus)
+                    uncminus = '%s_minu'%name
+                    UNCminus = self.getData(uncminus)
+                    data=[{'x': MES.time, 'y': q, 'ls': '-'},{'x': t,'c': 'k'},
+                          {'x': MES.time, 'y': abs(UNCplus.data), 'ls': '--'}, {'x' : MES.time, 'y': abs(UNCminus.data), 'ls': '--'}]
+                    return PlotBunch(kind='trace',data=data, setting={'ylim':(0,10)})
+                else:
+                    data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
+                    if not UNC is  None:
+                        data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
+                                     {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
+                    return PlotBunch(kind='trace',data=data)
             else:    
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
                 points = MES.data.shape[-1]
@@ -177,28 +214,35 @@ class ShotfileBackend(Backend):
                 
                 return PlotBunch(kind='trace',data=data)
 
-        except (TypeError,AttributeError):
-            print '%s-trace is not available in that shot for t=%s'%(name, t)
+        except (TypeError,AttributeError)as e:
+            print e, '%s-trace is not available in that shot for t=%s'%(name, t)
             pass
 
     def timecontourdata(self, name, t):
         try:
             MES = self.lookfordata(name, onlyMES=True)
-            return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                        'z': (np.abs(MES.data) if name == 'timecontour-q' else MES.data)}, {'x':t, 'c':'k'}])
+            if name == 'q_sa':
+                return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
+                                                            'z': (np.abs(MES.data) if name == 'timecontour-q' else MES.data)}, {'x':t, 'c':'k'}],
+                                                            setting={'ylim':(0,1)})
+            else:
+                return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
+                                                            'z': (np.abs(MES.data) if name == 'timecontour-q' else MES.data)}, {'x':t, 'c':'k'}])
         except (TypeError,AttributeError) as e:
-            print e, '%s-timecontour is not available in that shot for t=%s'%(name, t)
+            print e, '\n%s-timecontour is not available in that shot for t=%s'%(name, t)
             pass
 
-    __cache = {}
+    _cache = {}
 
     def getData(self, name, workaround_time=None):
+        #if name == 'q_sa':
+            #embed()
 
         if name == 'pfm' and workaround_time != None:
             return self.eq.get_pfm(workaround_time)
 
         #workaround for the loading of the data from the equilibrium shotfiles
-        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self.__cache:
+        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self._cache:
             
             tvec = self.getData('time').data
 
@@ -221,26 +265,26 @@ class ShotfileBackend(Backend):
             prof.area.data = rho
             prof.time = tvec
             
-            self.__cache[name] = prof
+            self._cache[name] = prof
 
-        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and name in self.__cache:
+        if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and name in self._cache:
             if np.isfinite(workaround_time):
-                prof = self.__cache[name]
+                prof = self._cache[name]
                 t_index = np.argmin(np.abs(prof.time-workaround_time))
                 prof_ = deepcopy(prof)
                 prof_.data = prof.data[t_index]
                 prof_.time = prof.time[t_index]
                 prof_.area.data = prof.area.data[t_index]
-                return prof_
+                return prof___
 
-        if name not in self.__cache:
-            self.__cache[name] = None   #returned in the case that nothing was found
+        if name not in self._cache:
+            self._cache[name] = None   #returned in the case that nothing was found
             for diag in self.equ:
                 if  name in diag.getObjectNames().values():
-                    self.__cache[name] = copy(diag(name))
+                    self._cache[name] = copy(diag(name))
                     break
   
-        return self.__cache[name]
+        return self._cache[name]
 
     def getSinglePlotForTimePoint(self, name, t):
         t_ind = np.abs(self.getData('time').data - t).argmin()
@@ -250,12 +294,13 @@ class ShotfileBackend(Backend):
                 return self.timecontourdata('pres', t)
             
             elif name == 'timecontour-q':
-                q = self.getData('q_sa')
-                if q is None:
-                    q = self.getData('Qpsi',np.nan)
-                return PlotBunch(kind='timecontour', 
-                    data=[{'x':q.time, 'y': q.area.data[0], 'z':np.abs(q.data),
-                           'levels':[1, 1.5, 2, 3, 4, 5]},{'x': t, 'c': 'k'}])
+                q = self.timecontourdata('q_sa', t) #self.getData('q_sa')
+                return q
+                #if q is None:
+                    #q = self.getData('Qpsi',np.nan)
+                #return PlotBunch(kind='timecontour', 
+                    #data=[{'x':q.time, 'y': q.area.data[0], 'z':np.abs(q.data),
+                           #'levels':[1, 1.5, 2, 3, 4, 5]},{'x': t, 'c': 'k'}])
 
             elif name == 'timecontour-Bprob':
                 return self.timecontourdata('Bprob', t)
@@ -287,6 +332,7 @@ class ShotfileBackend(Backend):
             #Zj = self.getData('Zj').data[t_index]
             #pfm = self.getData('PFM').data[t_index]
             #embed()
+            
             tmp = self.getData('pfm', t)
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
@@ -328,15 +374,76 @@ class ShotfileBackend(Backend):
             elif name == 'trace-beta':
                 pass
             elif name == 'trace-Rmag':
-                pass
+                return self.tracedata('Rmag', t)
             elif name == 'trace-Zmag':
-                pass
+                return self.tracedata('Zmag', t)
+            elif name == 'trace-Rin':
+                return self.tracedata('Rin', t)
+            elif name == 'trace-Raus':
+                return self.tracedata('Raus', t)
+            elif name == 'trace-betapol':
+                return self.tracedata('betpol', t)
+            elif name == 'trace-betapol+li/2':
+                return self.tracedata('bpli2', t)
+            #elif name == 'trace-li':
+                #return self.tracedata('li', t)
+            elif name == 'trace-Itor':
+                return self.tracedata('Itor', t)
+            elif name == 'trace-Rxpu':
+                return self.tracedata('Rxpu', t)
+            elif name == 'trace-Zxpu':
+                return self.tracedata('Zxpu', t)
+            elif name == 'trace-ahor':
+                return self.tracedata('ahor', t)
+            elif name == 'trace-bver':
+                return self.tracedata('bver', t)
+            elif name == 'trace-bver/ahor':
+                return self.tracedata('k', t)
+            #elif name == 'trace-Vol':
+                #return self.tracedata('Vol', t)
+            elif name == 'trace-XPfdif':
+                return self.tracedata('XPfdif', t)
+            elif name == 'trace-delR':
+                return self.tracedata('delR', t)
+            elif name == 'trace-delZ':
+                return self.tracedata('delZ', t)
+            elif name == 'trace-q0':
+                return self.tracedata('q0', t)
+            elif name == 'trace-q25':
+                return self.tracedata('q25', t)
+            elif name == 'trace-q50':
+                return self.tracedata('q50', t)
+            elif name == 'trace-q50':
+                return self.tracedata('q50', t)
+            elif name == 'trace-q75':
+                return self.tracedata('q75', t)
+            elif name == 'trace-q95':
+                return self.tracedata('q95', t)
+            elif name == 'trace-delR_oben':
+                return self.tracedata('delRoben', t)
+            elif name == 'trace-delR_unten':
+                return self.tracedata('delRuntn', t)
+            elif name == 'trace-k_oben':
+                return self.tracedata('koben', t)
+            elif name == 'trace-k_unten':
+                return self.tracedata('kuntn', t)
+            elif name == 'trace-dRxP':
+                return self.tracedata('dRXP', t)
+            #elif name == 'trace-ikCAT':
+                #return self.tracedata('ikCAT', t)
+            elif name == 'trace-eccd_tot':
+                return self.tracedata('eccd_tot', t)
+            #elif name == 'trace-ecrhmax':
+                #return self.tracedata('ecrhmax', t)
+            elif name == 'trace-Itax':
+                return self.tracedata('Itax', t)
 
         elif 'profile' in name:
             if name == 'profile-q':
-                qsa = self.getData('q_sa')
+                return self.profiledata('q_sa', t, t_ind)
+                '''qsa = self.getData('q_sa')
                 if qsa is None:
-                    qsa = self.getData('Qpsi',t)                    
+                    qsa = self.getData('Qpsi',t)
                 else:
                     qsa = qsa(tBegin=t, tEnd=t)
 
@@ -362,7 +469,7 @@ class ShotfileBackend(Backend):
                     data.extend([{'x': qsap.area.data, 'y': np.abs(qsap.data), 'ls': '--'},
                                 {'x': qsam.area.data, 'y': np.abs(qsam.data), 'ls': '--'}])
    
-                return PlotBunch(data=data,setting={'ylim':(0, 10),'xlim':(0,1)})
+                return PlotBunch(data=data,setting={'ylim':(0, 10),'xlim':(0,1)})'''
                 
             elif name == 'profile-pressure':
                 return self.profiledata('pres', t, t_ind)
@@ -399,14 +506,13 @@ class ShotfileBackend(Backend):
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
                 
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},
-                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'mew':1.2, 'ms':10, 'c':'k', 'label':'constraint', 'exc': True}]
+                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'c':'k', 'label':'constraint', 'exc': True}]
                 
                 if not punc is None:
                     punc = punc(tBegin=t, tEnd=t)
-                    data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True},
-                                 {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
+                    data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True}, {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
                 if not pconunc is None:
-                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_','mew':1.2,'ms':10,  'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_','mew':1.2,'ms':10, 'ls': '', 'c':'k', 'exc': True}])
+                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_', 'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_', 'ls': '', 'c':'k', 'exc': True}])
                 
                 return PlotBunch(data=data, setting={'ylim':(0, maxpres),'xlim':(0,1)})
 

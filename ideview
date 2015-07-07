@@ -3,7 +3,6 @@
 
 import os
 import platform
-import sys
 
 if platform.system() != 'Linux':
     print 'Please use "toksXX". i.e. "ssh toksXX" where "XX" means numbers between 01-06'
@@ -251,6 +250,30 @@ class View(tk.Tk):
             self.makeentry(name_, self.settings.selectedPlots, frame, j, row_)
             self.preparePlots()
             self.updatePlots()
+        
+        allCheckboxes = []
+
+        def selectNone(self):
+            i=0
+            while i < len(allCheckboxes):
+                allCheckboxes[i].deselect()
+                i += 1
+            updatePlotSelection()
+
+        allNoneCb = []
+        NoneCb1 = tk.Checkbutton(f1, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
+        allNoneCb.append(NoneCb1)
+        NoneCb2 = tk.Checkbutton(f2, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
+        allNoneCb.append(NoneCb2)
+        NoneCb3 = tk.Checkbutton(f3, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
+        allNoneCb.append(NoneCb3)
+        NoneCb4 = tk.Checkbutton(f4, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
+        allNoneCb.append(NoneCb4)
+        NoneCb5 = tk.Checkbutton(f5, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
+        allNoneCb.append(NoneCb5)
+        for i, p in enumerate(allNoneCb):
+            allNoneCb[i].grid(row=0, column=1, sticky=tk.W)
+            allCheckboxes.append(allNoneCb[i])
 
         for i, name_ in enumerate(available):
             kind, parameter = name_.split('-')
@@ -269,7 +292,8 @@ class View(tk.Tk):
                 boxvars[name_].set(1)
                 cb.select()
             
-            cb.grid(row = i, column=1, sticky=tk.W)
+            cb.grid(row = i+2, column=1, sticky=tk.W)
+            allCheckboxes.append(cb)
 
         n.grid()
 
@@ -332,6 +356,10 @@ class View(tk.Tk):
             self.timeslider.set(self.timeslider.get() + res)
             self.updatePlots()
             self._job = self.after(10, self.playLoop)
+        else:
+            self.playButton.configure(text=self.playString)
+            self.playing = False            
+            self.status('')
 
     def onLoadButtonClick(self, event=None):
         self.settings.lastDiag = self.entryDiag.get()
@@ -381,11 +409,15 @@ class View(tk.Tk):
         Np = s.count('profile')
         Nt = s.count('trace') + s.count('timecontour')
         Nw, Nh = 1, 0
-        while Nw*Nh < Np:
-            Nw += 1
-            if  Nw*Nh >= Np:
-                break
-            Nh += 1
+        if Np == 1 and Nc == 0 and Nt == 0:
+            Nw=1
+            Nh=1
+        else:
+            while Nw*Nh < Np:
+                Nw += 1
+                if  Nw*Nh >= Np:
+                    break
+                Nh += 1
 
         gs = gridspec.GridSpec(Nh+Nt, Nw+Nc) if Np+Nt != 0 else gridspec.GridSpec(Nw, Nc)
         Cc, Cp, Ct = 0, 0, 0
