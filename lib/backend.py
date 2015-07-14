@@ -59,7 +59,7 @@ class ShotfileBackend(Backend):
     def getAvailableTimes(self):
         return self.times
  
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax']
+    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
@@ -104,7 +104,7 @@ class ShotfileBackend(Backend):
             else:
                 return MES, FIT, UNC
         except Exception as e:
-            print e
+            print e, '\n Something went wrong while looking for the data'
             pass
 
     def profiledata(self, name, t, t_ind, unc=True, fit=True):
@@ -116,8 +116,11 @@ class ShotfileBackend(Backend):
             shape = MES.area.data.shape
             MES_Area_data = MES.area.data[0 if shape[0]==1 else t_ind]
             MES_Data = MES.data[t_ind]
-            if name != 'q_sa':
+
+            if name != 'q_sa' and name != 'eccurgyr':
                 data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-'}]
+
+            
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
@@ -131,6 +134,7 @@ class ShotfileBackend(Backend):
                 FIT_Area_data = FIT.area.data[0 if shape[0]==1 else t_ind]
                 FIT_Data = FIT.data[t_ind]
                 data.extend([{'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-'}])
+
             if name == 'q_sa':
                 qsa = MES
                 MIN = 0
@@ -157,9 +161,25 @@ class ShotfileBackend(Backend):
                     #embed()
                     data.extend([{'x': qsap.area.data[t_ind], 'y': np.abs(qsap.data)[t_ind], 'ls': '--'},
                                 {'x': qsam.area.data[t_ind], 'y': np.abs(qsam.data)[t_ind], 'ls': '--'}])
-            return PlotBunch(data=data, setting={'ylim':(MIN, MAX)})
+
+            if name == 'eccurgyr':
+                data = []
+                colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
+                MES.area = self.getData('eccd_rp')
+                for i in range(0, int(MES.data.shape[2])):
+                    colour = colours[i]
+                    if MES.area.data[t_ind].max() > 1:                        
+                        data.extend([{'x': np.array([0,1]), 'y': np.array([0,0]), 'ls': '--', 'c': colour, 'label':'gyr%i'%(i+1), 'exc' : True}])
+                    else:
+                        data.extend([{'x': MES.area.data[t_ind], 'y': MES.data[t_ind, :, i], 'ls': '--', 'c': colour, 'label':'gyr%i'%(i+1), 'exc' : True}])
+                total = self.getData('eccurtot')
+                if MES.area.data[t_ind].max() > 1:                        
+                    data.extend([{'x': np.array([0,1]), 'y': np.array([0,0]), 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
+                else:
+                    data.extend([{'x': MES.area.data[t_ind], 'y': total.data[t_ind, :], 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
+            return PlotBunch(data=data, setting={'xlim':(0, 1), 'ylim':(MIN, MAX)})
         except Exception as e:
-            print e,  '%s-profile is not available in that shot for t=%s'%(name, t)
+            print e,  '\n%s-profile is not available in that shot for t=%s'%(name, t)
             pass
 
     def resdata(self, name, t, t_ind):
@@ -181,11 +201,11 @@ class ShotfileBackend(Backend):
                     data.append({'x': [MES.area.data[0,i]]*2, 'y': [0, y], 'marker':'+', 'markersize':10})
             return PlotBunch(data=data, setting={'ylim':(-3, 3)})
 
-        except (TypeError,AttributeError):
-            print '%s-residuum is not available in that shot for t=%s'%(name, t)
+        except (TypeError,AttributeError) as e:
+            print e, '\n%s-residuum is not available in that shot for t=%s'%(name, t)
             pass
 
-    def tracedata(self, name, t):
+    def tracedata(self, name, t, ecrh = None):
         try:
             MES, FIT, UNC = self.lookfordata(name)
             if not 'signalGroup' in str(type(MES)):
@@ -204,8 +224,32 @@ class ShotfileBackend(Backend):
                     if not UNC is  None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
+
                     return PlotBunch(kind='trace',data=data)
-            else:    
+
+            elif name == 'ecrhmax':
+                data = [{'x': t,'c': 'k'}]
+                colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
+                if ecrh == 'R':
+                    for i in range(MES.data.shape[2]):
+                        colour = colours[i]
+                        data.append({'x':MES.time, 'y':MES.data[:,0,i], 'label':'gyro%i'%i,  'c': colour, 'exc' : True})
+                if ecrh == 'z':
+                    for i in range(MES.data.shape[2]):
+                        colour = colours[i]
+                        data.append({'x':MES.time, 'y':MES.data[:,1,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+                if ecrh == 'y':
+                    for i in range(MES.data.shape[2]):
+                        colour = colours[i]
+                        data.append({'x':MES.time, 'y':MES.data[:,2,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+                if ecrh == 'rho':
+                    for i in range(MES.data.shape[2]):
+                        colour = colours[i]
+                        data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+
+                return PlotBunch(kind='trace',data=data)
+
+            else:
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
                 points = MES.data.shape[-1]
                 sum_ = np.sum(tmp, axis=1)
@@ -215,7 +259,7 @@ class ShotfileBackend(Backend):
                 return PlotBunch(kind='trace',data=data)
 
         except (TypeError,AttributeError)as e:
-            print e, '%s-trace is not available in that shot for t=%s'%(name, t)
+            print e, '\n%s-trace is not available in that shot for t=%s'%(name, t)
             pass
 
     def timecontourdata(self, name, t):
@@ -357,22 +401,15 @@ class ShotfileBackend(Backend):
             return PlotBunch(kind='contour', data=data)
 
         elif 'trace' in name:
+
             if name == 'trace-Wmhd':
                 return self.tracedata('Wmhd',t)
-
             elif name == 'trace-Bprob':
                 return self.tracedata('Bprob', t)
-
             elif name == 'trace-Dpsi':
                 return self.tracedata('Dpsi', t)
-
             elif name == 'trace-Iext':
                 return self.tracedata('Iext', t)
-
-            elif name == 'trace-li':
-                pass
-            elif name == 'trace-beta':
-                pass
             elif name == 'trace-Rmag':
                 return self.tracedata('Rmag', t)
             elif name == 'trace-Zmag':
@@ -385,8 +422,8 @@ class ShotfileBackend(Backend):
                 return self.tracedata('betpol', t)
             elif name == 'trace-betapol+li/2':
                 return self.tracedata('bpli2', t)
-            #elif name == 'trace-li':
-                #return self.tracedata('li', t)
+            elif name == 'trace-li':
+                return self.tracedata('li', t)
             elif name == 'trace-Itor':
                 return self.tracedata('Itor', t)
             elif name == 'trace-Rxpu':
@@ -433,8 +470,14 @@ class ShotfileBackend(Backend):
                 #return self.tracedata('ikCAT', t)
             elif name == 'trace-eccd_tot':
                 return self.tracedata('eccd_tot', t)
-            #elif name == 'trace-ecrhmax':
-                #return self.tracedata('ecrhmax', t)
+            elif name == 'trace-ecrhmax(R)':
+                return self.tracedata('ecrhmax', t, ecrh = 'R')
+            elif name == 'trace-ecrhmax(z)':
+                return self.tracedata('ecrhmax', t, ecrh = 'z')
+            elif name == 'trace-ecrhmax(y)':
+                return self.tracedata('ecrhmax', t, ecrh = 'y')
+            elif name == 'trace-ecrhmax(rho)':
+                return self.tracedata('ecrhmax', t, ecrh = 'rho')
             elif name == 'trace-Itax':
                 return self.tracedata('Itax', t)
 
@@ -533,6 +576,33 @@ class ShotfileBackend(Backend):
 
             elif name == 'res(profile)-Bprob':
                 return self.resdata('Bprob', t, t_ind)
+
+            elif name == 'profile-ECcur_tot':
+                return self.profiledata('eccurtot', t, t_ind)
+
+            elif name == 'profile-ECcur_gyr':
+                return self.profiledata('eccurgyr', t, t_ind)
+
+            elif name == 'profile-Jpol_tot':
+                return self.profiledata('Jpol_tot', t, t_ind)
+
+            elif name == 'profile-Jpol_pla':
+                return self.profiledata('Jpol_pla', t, t_ind)
+
+            elif name == 'profile-Itps':
+                return self.profiledata('Itps', t, t_ind)
+
+            elif name == 'profile-Itps_av':
+                return self.profiledata('Itps_av', t, t_ind)
+
+            elif name == 'profile-Itfs':
+                return self.profiledata('Itfs', t, t_ind)
+
+            elif name == 'profile-Itfs_av':
+                return self.profiledata('Itfs_av', t, t_ind)
+
+            elif name == 'profile-eccur':
+                return self.profiledata('eccurtot', t, t_ind)
 
 
     def getPlotsForTimePoint(self, names, t):
