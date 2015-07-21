@@ -24,26 +24,43 @@ class Backend(object):
         return None
 
 class ShotfileBackend(Backend):
+    openedEditions = {}
+
     def __init__(self, diag='TRE',experiment='TODSTRCI', shot=30579, edition=0):
         super(ShotfileBackend, self).__init__()
         self.experiment = experiment
         self.shot = shot
         self.edition = edition
         self.equ = []
+        self.openedEditions = {}
         
         #load shotfile with 2d quantities
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
+        self.openedEditions[diag] = self.equ[-1].edition
+        try:
+            if diag == 'IDE': 
+                idf_ed = self.equ[-1].getParameter('idefg_ed', 'idf_ed').data
+                idg_ed = self.equ[-1].getParameter('idefg_ed', 'idg_ed').data
+                self.equ.append(dd.shotfile('IDF', shot, experiment, idf_ed))
+                self.openedEditions['IDF'] = self.equ[-1].edition
+                self.equ.append(dd.shotfile('IDG', shot, experiment, idg_ed))
+                self.openedEditions['IDG'] = self.equ[-1].edition
+        except Exception as e:
+            print 'WARNING! Please use the old edition.'
+            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
+            self.openedEditions['IDF'] = self.equ[-1].edition
+            self.equ.append(dd.shotfile('IDG', shot, experiment, edition))
+            self.openedEditions['IDG'] = self.equ[-1].edition
 
         #shotfiles with 1d quantities
-        diags_1d =  {'EQE':'GQE','FPQ':'FPK','IDE':'IDG','EQI':'GQI','EQH':'GQH',
+        diags_1d =  {'EQE':'GQE','FPQ':'FPK','EQI':'GQI','EQH':'GQH',
                      'FPP':'GPI','EQR':'FPG'}
         
         if diag in diags_1d:
             self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
+            self.openedEditions[diags_1d[diag]] = self.equ[-1].edition
 
         #shotfile with the errorbars
-        if diag == 'IDE': 
-            self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
         
         if diag == 'MGS':
             raise Warning('MGS is not supported yet')
@@ -59,7 +76,7 @@ class ShotfileBackend(Backend):
     def getAvailableTimes(self):
         return self.times
  
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li']
+    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li', 'contour-ecrhpos']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
@@ -267,11 +284,11 @@ class ShotfileBackend(Backend):
             MES = self.lookfordata(name, onlyMES=True)
             if name == 'q_sa':
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                            'z': (np.abs(MES.data) if name == 'timecontour-q' else MES.data)}, {'x':t, 'c':'k'}],
+                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}],
                                                             setting={'ylim':(0,1)})
             else:
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                            'z': (np.abs(MES.data) if name == 'timecontour-q' else MES.data)}, {'x':t, 'c':'k'}])
+                                                            'z':MES.data}, {'x':t, 'c':'k'}])
         except (TypeError,AttributeError) as e:
             print e, '\n%s-timecontour is not available in that shot for t=%s'%(name, t)
             pass
@@ -279,8 +296,6 @@ class ShotfileBackend(Backend):
     _cache = {}
 
     def getData(self, name, workaround_time=None):
-        #if name == 'q_sa':
-            #embed()
 
         if name == 'pfm' and workaround_time != None:
             return self.eq.get_pfm(workaround_time)
@@ -319,12 +334,13 @@ class ShotfileBackend(Backend):
                 prof_.data = prof.data[t_index]
                 prof_.time = prof.time[t_index]
                 prof_.area.data = prof.area.data[t_index]
-                return prof___
+                return prof_#__
 
         if name not in self._cache:
             self._cache[name] = None   #returned in the case that nothing was found
+            #embed()
             for diag in self.equ:
-                if  name in diag.getObjectNames().values():
+                if name in diag.getObjectNames().values():
                     self._cache[name] = copy(diag(name))
                     break
   
@@ -397,6 +413,13 @@ class ShotfileBackend(Backend):
                 lvls = np.arange(pfm.min(), pfm.max(), 0.05)
                 lvls = np.insert(lvls, 0, psiSep)
                 data[0].update({'z': pfm,'levels':lvls})
+            elif 'ecrhpos' in name:
+                MES = self.getData('ecrhpos')
+                #embed()
+                pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
+                data[0].update({'z': pfm,'levels':np.arange(0,2,.1)})
+                for i in range(MES.data.shape[3]):
+                    data.append({'x':MES.data[t_index,:,0,i], 'y':MES.data[t_index,:,1,i]})
 
             return PlotBunch(kind='contour', data=data)
 

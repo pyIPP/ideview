@@ -248,8 +248,8 @@ class View(tk.Tk):
             j = len(self.settings.selectedPlots)
             #if name_ in self.settings.selectedPlots:
             self.makeentry(name_, self.settings.selectedPlots, frame, j, row_)
-            self.preparePlots()
-            self.updatePlots()
+            #self.preparePlots()
+            #self.updatePlots()
         
         allCheckboxes = []
 
@@ -295,7 +295,23 @@ class View(tk.Tk):
             cb.grid(row = i+2, column=1, sticky=tk.W)
             allCheckboxes.append(cb)
 
+            applybutton1 = tk.Button(f1, text='apply', command=self.apply_)
+            applybutton2 = tk.Button(f2, text='apply', command=self.apply_)
+            applybutton3 = tk.Button(f3, text='apply', command=self.apply_)
+            applybutton4 = tk.Button(f4, text='apply', command=self.apply_)
+            applybutton5 = tk.Button(f5, text='apply', command=self.apply_)
+            applybutton1.grid(row = 0, column = 2)
+            applybutton2.grid(row = 0, column = 2)
+            applybutton3.grid(row = 0, column = 2)
+            applybutton4.grid(row = 0, column = 2)
+            applybutton5.grid(row = 0, column = 2)
+
         n.grid()
+
+    def apply_(self):
+        self.preparePlots()
+        self.updatePlots()
+
 
     def makeentry(self, name, checked, f, j, i):        # TODO entries beneath selectable options for decide in which plot they should be displayed
         return
@@ -382,7 +398,7 @@ class View(tk.Tk):
 
     def load(self,diag, exp, shot, edition):   
         self.loaded = False
-        self.status('Loading %s...'%shot)
+        self.status('Loading %s %s #%s.%s'%(diag,exp,shot,edition))
         self.backend = ShotfileBackend(diag,exp, int(shot), int(edition))
         t = self.backend.getAvailableTimes()
         self.timeslider.configure(from_=t.min(), to=t.max(), resolution=(t[-1]-t[0])/len(t))
@@ -393,7 +409,11 @@ class View(tk.Tk):
         eq.Open(int(shot), 'AUGD', 'YGC')
         self.structures = eq.get_vessel_structures()
 
-        self.status('Loaded %s.'%shot)
+        oe = self.backend.openedEditions
+        keys = oe.keys()
+        keys.sort()
+        editions = ' '.join(['%s:%i'%(key, oe[key]) for key in keys])
+        self.status('Loaded: %s:%s #%s %s'%(exp,diag,shot,editions))
 
         self.preparePlots()
         if not self.loaded: self.updatePlots()
@@ -523,6 +543,7 @@ class View(tk.Tk):
                     
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
+                    
                     if not 'z' in p:
                         x = p.pop('x') if 'x' in p else ax.get_xlim()
                         y = p.pop('y') if 'y' in p else ax.get_ylim()
@@ -543,45 +564,65 @@ class View(tk.Tk):
                         x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
 
                         if not cachekey in self.__linecache:
-                            tmp = ax.contour(x, y, z.T, 20,**p)
+                            tmp = ax.contour(x, y, z.T, **p)
+                            if key.split('-')[-1] == 'q':
+                                labels = []
+                                for i in range(len(tmp.levels)):
+                                    labels.append(tmp.levels[i])
+                                for i in range(len(labels)):
+                                    tmp.collections[i].set_label(labels[i])
+
                             ax.set_title(key.split('-')[-1])
                             self.__linecache[cachekey] = tmp
                             
                             
-            elif ps.kind == 'contour':      #pretty expensive
+            elif ps.kind == 'contour':
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
-                    x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
-                    if self.__firstplot:
-                        ax.set_aspect('equal') 
-                        ax.axis([1,2.2,-1.2,1.1 ])
-                        ax.set_title(key.split('-')[-1])
+                    if 'z' not in p:
+                        #embed()
+                        x = p.pop('x') if 'x' in p else ax.get_xlim()
+                        y = p.pop('y') if 'y' in p else ax.get_ylim()
+                        if np.size(x) == 1: x = [x,x]
+                        if np.size(y) == 1: y = [y,y]
+                        if cachekey in self.__linecache:
+                            self.__linecache[cachekey].set_data(x,y)
+    
+                        else:
+                            c = 'b'
+                            tmp, =  ax.plot(x, y, color=c, **p)
+                            self.__linecache[cachekey] = tmp
+                    else:
+                        x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
+                        if self.__firstplot:
+                            ax.set_aspect('equal') 
+                            ax.axis([1,2.2,-1.2,1.1 ])
+                            ax.set_title(key.split('-')[-1])
+    
+                        if cachekey in self.__linecache:
+                            C = self.__linecache[cachekey]
+                            for coll in C.collections:
+                                ax.collections.remove(coll) 
+                        if 'rho' in key:
+                            z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
+                            p['levels'] = 1- p['levels']
 
-                    if cachekey in self.__linecache:
-                        C = self.__linecache[cachekey]
-                        for coll in C.collections:
-                            ax.collections.remove(coll) 
-                    if 'rho' in key:
-                        z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
-                        p['levels'] = 1- p['levels']
-
-                    self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+                        self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
 
-            elif ps.kind == 'text':
-                pass
-            elif ps.kind == 'fill':
-                pass
-
-            if 'contour' not in ps.kind and self.__firstplot:
+            if ps.kind != 'contour' and self.__firstplot:
+                if key.split('-')[-1] != 'q' and ps.kind == 'timecontour':
+                    break
                 leg = ax.legend(loc='upper right', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
 
                 
 
         self.__firstplot = False
 
-        self.canvas.draw()      # perfomance depents on if its drawn
+        self.canvas.draw()
     
     def scaleUpdated(self, event):
         self.updatePlots()
