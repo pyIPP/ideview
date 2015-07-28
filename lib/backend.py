@@ -4,7 +4,7 @@ from IPython import embed
 from copy import copy,deepcopy
 sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
 from lib.bunch import PlotBunch
-
+#from lib.settings import Settings
 import dd_20140805 as dd
 import kk_abock as kk
 sys.path.append('/afs/ipp/home/g/git/python/repository/')
@@ -33,7 +33,7 @@ class ShotfileBackend(Backend):
         self.edition = edition
         self.equ = []
         self.openedEditions = {}
-        
+        #self.settings = Settings()
         #load shotfile with 2d quantities
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
         self.openedEditions[diag] = self.equ[-1].edition
@@ -76,10 +76,14 @@ class ShotfileBackend(Backend):
     def getAvailableTimes(self):
         return self.times
  
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li', 'contour-ecrhpos']
+    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
+
+    def getAvailableGyrotrons(self):
+        if self.getData('ecrhpos') != None:
+            return self.getData('ecrhpos').data.shape[3]
 
     def lookfordata(self, name, onlyMES=False):
         try:
@@ -127,13 +131,14 @@ class ShotfileBackend(Backend):
     def profiledata(self, name, t, t_ind, unc=True, fit=True):
         try:
             MES, FIT, UNC = self.lookfordata(name)
-            MAX = MES.data.max()
-            MIN = MES.data.min()
+            XMAX = MES.area.data.max() if (MES.area.data.max() < 1000) else 1
+            XMIN = MES.area.data.min() if (MES.area.data.min() > -1000) else 0
+            YMAX = np.nanmax(MES.data)
+            YMIN = np.nanmin(MES.data)
 
             shape = MES.area.data.shape
             MES_Area_data = MES.area.data[0 if shape[0]==1 else t_ind]
             MES_Data = MES.data[t_ind]
-
             if name != 'q_sa' and name != 'eccurgyr':
                 data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-'}]
 
@@ -194,7 +199,9 @@ class ShotfileBackend(Backend):
                     data.extend([{'x': np.array([0,1]), 'y': np.array([0,0]), 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
                 else:
                     data.extend([{'x': MES.area.data[t_ind], 'y': total.data[t_ind, :], 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
-            return PlotBunch(data=data, setting={'xlim':(0, 1), 'ylim':(MIN, MAX)})
+
+            return PlotBunch(data=data, setting={'xlim': (XMIN,XMAX), 'ylim':(YMIN,YMAX)})
+
         except Exception as e:
             print e,  '\n%s-profile is not available in that shot for t=%s'%(name, t)
             pass
@@ -250,19 +257,19 @@ class ShotfileBackend(Backend):
                 if ecrh == 'R':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
-                        data.append({'x':MES.time, 'y':MES.data[:,0,i], 'label':'gyro%i'%i,  'c': colour, 'exc' : True})
+                        data.append({'x':MES.time, 'y':MES.data[:,0,i], 'label':'gyro%i'%(i+1),  'c': colour, 'exc' : True})
                 if ecrh == 'z':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
-                        data.append({'x':MES.time, 'y':MES.data[:,1,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+                        data.append({'x':MES.time, 'y':MES.data[:,1,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
                 if ecrh == 'y':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
-                        data.append({'x':MES.time, 'y':MES.data[:,2,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+                        data.append({'x':MES.time, 'y':MES.data[:,2,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
                 if ecrh == 'rho':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
-                        data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%i, 'c': colour, 'exc' : True})
+                        data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
 
                 return PlotBunch(kind='trace',data=data)
 
@@ -284,8 +291,7 @@ class ShotfileBackend(Backend):
             MES = self.lookfordata(name, onlyMES=True)
             if name == 'q_sa':
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}],
-                                                            setting={'ylim':(0,1)})
+                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}])
             else:
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
                                                             'z':MES.data}, {'x':t, 'c':'k'}])
@@ -354,13 +360,7 @@ class ShotfileBackend(Backend):
                 return self.timecontourdata('pres', t)
             
             elif name == 'timecontour-q':
-                q = self.timecontourdata('q_sa', t) #self.getData('q_sa')
-                return q
-                #if q is None:
-                    #q = self.getData('Qpsi',np.nan)
-                #return PlotBunch(kind='timecontour', 
-                    #data=[{'x':q.time, 'y': q.area.data[0], 'z':np.abs(q.data),
-                           #'levels':[1, 1.5, 2, 3, 4, 5]},{'x': t, 'c': 'k'}])
+                return self.timecontourdata('q_sa', t)
 
             elif name == 'timecontour-Bprob':
                 return self.timecontourdata('Bprob', t)
@@ -405,21 +405,33 @@ class ShotfileBackend(Backend):
             #psiAx,psiSep = PFxx[0,:], PFxx[sep_ind,np.arange(len(mag))]        
             
             data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx}]
-            if 'rho' in name:
-                pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
-                data[0].update({'z': pfm,'levels':np.arange(0,2,.1)})
-            elif 'pfl' in name:
+
+            if 'pfl' in name:
                 pfm = pfm - psiSep
                 lvls = np.arange(pfm.min(), pfm.max(), 0.05)
                 lvls = np.insert(lvls, 0, psiSep)
                 data[0].update({'z': pfm,'levels':lvls})
-            elif 'ecrhpos' in name:
-                MES = self.getData('ecrhpos')
-                #embed()
+
+            elif 'rho' in name:
+                MESs = [self.getData('ecrhpos'), self.getData('ecrhposu'), self.getData('ecrhposl')]
+                MESmax = self.getData('ecrhmax')
+                colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
                 pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
                 data[0].update({'z': pfm,'levels':np.arange(0,2,.1)})
-                for i in range(MES.data.shape[3]):
-                    data.append({'x':MES.data[t_index,:,0,i], 'y':MES.data[t_index,:,1,i]})
+                gyrind = []
+                for i in range(MESmax.data.shape[2]):
+                    colour = colours[i]
+                    for MES in MESs:
+                        R = MES.data[t_index,:,0,i]
+                        z = MES.data[t_index,:,1,i]
+                        ind = np.where((R==0) + (z==0))
+                        R = np.delete(R, ind)
+                        z = np.delete(z, ind)
+
+                        data.append({'x':R, 'y':z, 'ls':'-', 'c':colour, 'gyro_ind':i})
+                    data.append({'x':MESmax.data[t_index,0,i], 'y':MESmax.data[t_index,1,i], 'ls':'', 'marker':'o', 'c':colour, 'gyro_ind':i})
+                    gyrind.append(i)
+                #embed()
 
             return PlotBunch(kind='contour', data=data)
 

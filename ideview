@@ -194,7 +194,7 @@ class View(tk.Tk):
         toolframe.pack_propagate(0)
         toolframe.pack(side=tk.TOP, fill=tk.X)
 
-        self.geometry(self.settings.windowSize)
+        self.geometry(self.settings.windowConditions)
         self.bind("<Configure>", self.onResize)
 
         #TODO  remove
@@ -238,11 +238,20 @@ class View(tk.Tk):
         n.add(f3, text='Traces')
         n.add(f4, text='Timecontours')
         n.add(f5, text='Contours')
+
         selected = self.settings.selectedPlots
         available = self.backend.getAvailablePlotNames()
         boxvars = {}
+
+        selectedgyros = self.settings.selectedGyrotrons
+        availablegyros = self.backend.getAvailableGyrotrons()
+        gyrovars = {}
+
         for name in available:
             boxvars[name] = tk.IntVar()
+        for i in range(availablegyros):
+            gyrovars[i] = tk.IntVar()
+
         def updatePlotSelection(name_=None, frame=None, row_=None):
             self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
             j = len(self.settings.selectedPlots)
@@ -250,6 +259,10 @@ class View(tk.Tk):
             self.makeentry(name_, self.settings.selectedPlots, frame, j, row_)
             #self.preparePlots()
             #self.updatePlots()
+
+        def updateSelectedGyrotrons():
+            self.settings.selectedGyrotrons = [gyronum for gyronum in gyrovars if gyrovars[gyronum].get()]
+        
         
         allCheckboxes = []
 
@@ -259,6 +272,7 @@ class View(tk.Tk):
                 allCheckboxes[i].deselect()
                 i += 1
             updatePlotSelection()
+            updateSelectedGyrotrons()
 
         allNoneCb = []
         NoneCb1 = tk.Checkbutton(f1, text='None', onvalue=1, offvalue=0, command=partial(selectNone, self))
@@ -292,7 +306,7 @@ class View(tk.Tk):
                 boxvars[name_].set(1)
                 cb.select()
             
-            cb.grid(row = i+2, column=1, sticky=tk.W)
+            cb.grid(row = i+2, column = 1, sticky=tk.W)
             allCheckboxes.append(cb)
 
             applybutton1 = tk.Button(f1, text='apply', command=self.apply_)
@@ -305,6 +319,14 @@ class View(tk.Tk):
             applybutton3.grid(row = 0, column = 2)
             applybutton4.grid(row = 0, column = 2)
             applybutton5.grid(row = 0, column = 2)
+            if name_ == 'contour-rho':
+                for j in range(availablegyros):
+                    CB = tk.Checkbutton(f5, text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
+                    CB.grid(row = i+j+2, column = 2, sticky = tk.W)
+                    allCheckboxes.append(CB)
+                    if j in selectedgyros:
+                        gyrovars[j].set(1)
+                        CB.select()
 
         n.grid()
 
@@ -330,8 +352,7 @@ class View(tk.Tk):
 
     def onResize(self, event):
         if event.widget == self:
-            self.settings.windowSize = "%ix%i" % (event.width, event.height)
-            # TODO adjusting tickintervals when resize timeslider
+            self.settings.windowConditions = self.geometry()
 
     playing = False
 
@@ -577,37 +598,89 @@ class View(tk.Tk):
                             
                             
             elif ps.kind == 'contour':
-                for j, p in enumerate(ps.data):
-                    cachekey = '%i%s%i'%(i, key, j)
-                    if 'z' not in p:
-                        #embed()
-                        x = p.pop('x') if 'x' in p else ax.get_xlim()
-                        y = p.pop('y') if 'y' in p else ax.get_ylim()
-                        if np.size(x) == 1: x = [x,x]
-                        if np.size(y) == 1: y = [y,y]
-                        if cachekey in self.__linecache:
-                            self.__linecache[cachekey].set_data(x,y)
-    
-                        else:
-                            c = 'b'
-                            tmp, =  ax.plot(x, y, color=c, **p)
-                            self.__linecache[cachekey] = tmp
-                    else:
-                        x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
-                        if self.__firstplot:
-                            ax.set_aspect('equal') 
-                            ax.axis([1,2.2,-1.2,1.1 ])
-                            ax.set_title(key.split('-')[-1])
-    
-                        if cachekey in self.__linecache:
-                            C = self.__linecache[cachekey]
-                            for coll in C.collections:
-                                ax.collections.remove(coll) 
-                        if 'rho' in key:
-                            z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
-                            p['levels'] = 1- p['levels']
+                if (len(ps.data) > 1):   #ecrhpos
+                    
+                    for j, p in enumerate(ps.data):
+                        cachekey = '%i%s%i'%(i, key, j)
+                        if 'z' not in p and (j>0):
+                            #embed()
+                            
+                            x = p.pop('x') if 'x' in p else ax.get_xlim()
+                            y = p.pop('y') if 'y' in p else ax.get_ylim()
+                            gyrInd = p.pop('gyro_ind') if 'gyro_ind' in p else None                            
+                            if not gyrInd is None and not gyrInd in self.settings.selectedGyrotrons:
+                                continue
 
-                        self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+                            if np.size(x) == 1: x = [x,x]
+                            if np.size(y) == 1: y = [y,y]
+                            if cachekey in self.__linecache:
+                                self.__linecache[cachekey].set_data(x,y)
+        
+                            else:
+                                c = 'b'
+                                tmp, =  ax.plot(x, y, color=c, **p)
+                                self.__linecache[cachekey] = tmp
+
+                        elif 'z' not in p and j==0:
+                            x = p.pop('x') if 'x' in p else ax.get_xlim()
+                            y = p.pop('y') if 'y' in p else ax.get_ylim()
+                            if np.size(x) == 1: x = [x,x]
+                            if np.size(y) == 1: y = [y,y]
+                            if cachekey in self.__linecache:
+                                self.__linecache[cachekey].set_data(x,y)
+        
+                            else:
+                                c = 'b'
+                                tmp, =  ax.plot(x, y, color=c, **p)
+                                self.__linecache[cachekey] = tmp
+                        else:
+                            x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
+                            if self.__firstplot:
+                                ax.set_aspect('equal') 
+                                ax.axis([1,2.2,-1.2,1.1 ])
+                                ax.set_title(key.split('-')[-1])
+        
+                            if cachekey in self.__linecache:
+                                C = self.__linecache[cachekey]
+                                for coll in C.collections:
+                                    ax.collections.remove(coll) 
+                            if 'rho' in key:
+                                z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
+                                p['levels'] = 1- p['levels']
+    
+                            self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+                else:
+    
+                    for j, p in enumerate(ps.data):
+                        cachekey = '%i%s%i'%(i, key, j)
+                        if 'z' not in p:
+                            x = p.pop('x') if 'x' in p else ax.get_xlim()
+                            y = p.pop('y') if 'y' in p else ax.get_ylim()
+                            if np.size(x) == 1: x = [x,x]
+                            if np.size(y) == 1: y = [y,y]
+                            if cachekey in self.__linecache:
+                                self.__linecache[cachekey].set_data(x,y)
+        
+                            else:
+                                c = 'b'
+                                tmp, =  ax.plot(x, y, color=c, **p)
+                                self.__linecache[cachekey] = tmp
+                        else:
+                            x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
+                            if self.__firstplot:
+                                ax.set_aspect('equal') 
+                                ax.axis([1,2.2,-1.2,1.1 ])
+                                ax.set_title(key.split('-')[-1])
+        
+                            if cachekey in self.__linecache:
+                                C = self.__linecache[cachekey]
+                                for coll in C.collections:
+                                    ax.collections.remove(coll) 
+                            if 'rho' in key:
+                                z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
+                                p['levels'] = 1- p['levels']
+    
+                            self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
 
             if ps.kind != 'contour' and self.__firstplot:
@@ -616,7 +689,7 @@ class View(tk.Tk):
                 leg = ax.legend(loc='upper right', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)
+                    legobj.set_linewidth(2.0)                
 
                 
 

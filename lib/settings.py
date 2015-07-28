@@ -24,8 +24,7 @@ class Settings(object):
         else:
             self._new()
 
-    startDict = {'selectedPlots':['profile-pressure', 'profile-q', 'contour-rho','trace-Wmhd'],
-                'lastDiag': 'IDE','lastShot': '31113','lastExp': 'AUGD','lastEd': '0','windowSize': '800x600'}
+    startDict = {'selectedPlots':[], 'selectedGyrotrons': [],'lastDiag': 'IDE','lastShot': '31113','lastExp': 'AUGD','lastEd': '0','windowConditions': '800x600+5+5'}
 
     def _new(self):  # some default settings
         self.__dict__.update(self.startDict)
