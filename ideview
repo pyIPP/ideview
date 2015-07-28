@@ -490,11 +490,12 @@ class View(tk.Tk):
             return
 
         if self.__firstplot:  
-            self.__linecache = {}
+            self._linecache = {}
 
         t = float(self.timeslider.get())
         plots = self.backend.getPlotsForTimePoint(self.settings.selectedPlots, t)
         # performance is fine until here, so optimise what comes next
+
 
         for i, key in enumerate(self.axes):
             ax = self.axes[key]
@@ -539,8 +540,8 @@ class View(tk.Tk):
                     if np.size(x) == 1: x = [x,x]
                     if np.size(y) == 1: y = [y,y]
 
-                    if cachekey in self.__linecache:
-                        self.__linecache[cachekey].set_data(x,y)
+                    if cachekey in self._linecache:
+                        self._linecache[cachekey].set_data(x,y)
 
                     else:
                         c = 'b'
@@ -555,7 +556,7 @@ class View(tk.Tk):
                         else:       #exceptions like residua
                             tmp, =  ax.plot(x, y, **p)
 
-                        self.__linecache[cachekey] = tmp
+                        self._linecache[cachekey] = tmp
 
                         
             elif ps.kind == 'timecontour':
@@ -564,6 +565,8 @@ class View(tk.Tk):
                     
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
+                    #print cachekey, self._linecache.keys()
+                    #if i==5: embed()
                     
                     if not 'z' in p:
                         x = p.pop('x') if 'x' in p else ax.get_xlim()
@@ -572,29 +575,29 @@ class View(tk.Tk):
                         if np.size(x) == 1: x = [x,x]
                         if np.size(y) == 1: y = [y,y]
 
-                        if cachekey in self.__linecache:
-                            self.__linecache[cachekey].set_data(x,y)
+                        if cachekey in self._linecache:
+                            self._linecache[cachekey].set_data(x,y)
                             
                         else:
                             tmp, = ax.plot(x, y,color='k', **p)
-                            self.__linecache[cachekey] = tmp
+                            self._linecache[cachekey] = tmp
                             
 
                             
                     else:
                         x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
 
-                        if not cachekey in self.__linecache:
+                        if not cachekey in self._linecache:
                             tmp = ax.contour(x, y, z.T, **p)
                             if key.split('-')[-1] == 'q':
                                 labels = []
-                                for i in range(len(tmp.levels)):
-                                    labels.append(tmp.levels[i])
-                                for i in range(len(labels)):
-                                    tmp.collections[i].set_label(labels[i])
+                                for l in range(len(tmp.levels)):
+                                    labels.append(tmp.levels[l])
+                                for l in range(len(labels)):
+                                    tmp.collections[l].set_label(labels[l])
 
                             ax.set_title(key.split('-')[-1])
-                            self.__linecache[cachekey] = tmp
+                            self._linecache[cachekey] = tmp
                             
                             
             elif ps.kind == 'contour':
@@ -613,26 +616,26 @@ class View(tk.Tk):
 
                             if np.size(x) == 1: x = [x,x]
                             if np.size(y) == 1: y = [y,y]
-                            if cachekey in self.__linecache:
-                                self.__linecache[cachekey].set_data(x,y)
+                            if cachekey in self._linecache:
+                                self._linecache[cachekey].set_data(x,y)
         
                             else:
                                 c = 'b'
                                 tmp, =  ax.plot(x, y, color=c, **p)
-                                self.__linecache[cachekey] = tmp
+                                self._linecache[cachekey] = tmp
 
                         elif 'z' not in p and j==0:
                             x = p.pop('x') if 'x' in p else ax.get_xlim()
                             y = p.pop('y') if 'y' in p else ax.get_ylim()
                             if np.size(x) == 1: x = [x,x]
                             if np.size(y) == 1: y = [y,y]
-                            if cachekey in self.__linecache:
-                                self.__linecache[cachekey].set_data(x,y)
+                            if cachekey in self._linecache:
+                                self._linecache[cachekey].set_data(x,y)
         
                             else:
                                 c = 'b'
                                 tmp, =  ax.plot(x, y, color=c, **p)
-                                self.__linecache[cachekey] = tmp
+                                self._linecache[cachekey] = tmp
                         else:
                             x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
                             if self.__firstplot:
@@ -640,15 +643,15 @@ class View(tk.Tk):
                                 ax.axis([1,2.2,-1.2,1.1 ])
                                 ax.set_title(key.split('-')[-1])
         
-                            if cachekey in self.__linecache:
-                                C = self.__linecache[cachekey]
+                            if cachekey in self._linecache:
+                                C = self._linecache[cachekey]
                                 for coll in C.collections:
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
                                 z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
                                 p['levels'] = 1- p['levels']
     
-                            self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+                            self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
                 else:
     
                     for j, p in enumerate(ps.data):
@@ -658,13 +661,13 @@ class View(tk.Tk):
                             y = p.pop('y') if 'y' in p else ax.get_ylim()
                             if np.size(x) == 1: x = [x,x]
                             if np.size(y) == 1: y = [y,y]
-                            if cachekey in self.__linecache:
-                                self.__linecache[cachekey].set_data(x,y)
+                            if cachekey in self._linecache:
+                                self._linecache[cachekey].set_data(x,y)
         
                             else:
                                 c = 'b'
                                 tmp, =  ax.plot(x, y, color=c, **p)
-                                self.__linecache[cachekey] = tmp
+                                self._linecache[cachekey] = tmp
                         else:
                             x,y,z = p.pop('x'), p.pop('y'), p.pop('z')
                             if self.__firstplot:
@@ -672,15 +675,15 @@ class View(tk.Tk):
                                 ax.axis([1,2.2,-1.2,1.1 ])
                                 ax.set_title(key.split('-')[-1])
         
-                            if cachekey in self.__linecache:
-                                C = self.__linecache[cachekey]
+                            if cachekey in self._linecache:
+                                C = self._linecache[cachekey]
                                 for coll in C.collections:
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
                                 z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
                                 p['levels'] = 1- p['levels']
     
-                            self.__linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+                            self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
 
             if ps.kind != 'contour' and self.__firstplot:
@@ -696,6 +699,7 @@ class View(tk.Tk):
         self.__firstplot = False
 
         self.canvas.draw()
+
     
     def scaleUpdated(self, event):
         self.updatePlots()

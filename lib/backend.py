@@ -159,8 +159,8 @@ class ShotfileBackend(Backend):
 
             if name == 'q_sa':
                 qsa = MES
-                MIN = 0
-                MAX = 10
+                YMIN = 0
+                YMAX = 10
                 rho = qsa.area.data[t_ind]
                 rho[0] = np.nan  #diffifulties with elevated profiles and q=1
                 q = abs(qsa.data)
@@ -291,7 +291,7 @@ class ShotfileBackend(Backend):
             MES = self.lookfordata(name, onlyMES=True)
             if name == 'q_sa':
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}])
+                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}], setting= {'ylim':(0,1)})
             else:
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
                                                             'z':MES.data}, {'x':t, 'c':'k'}])
