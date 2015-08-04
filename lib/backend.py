@@ -34,7 +34,6 @@ class ShotfileBackend(Backend):
         self.equ = []
         self.openedEditions = {}
         #self.settings = Settings()
-        #load shotfile with 2d quantities
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
         self.openedEditions[diag] = self.equ[-1].edition
         try:
@@ -59,12 +58,9 @@ class ShotfileBackend(Backend):
         if diag in diags_1d:
             self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
             self.openedEditions[diags_1d[diag]] = self.equ[-1].edition
-
-        #shotfile with the errorbars
         
         if diag == 'MGS':
             raise Warning('MGS is not supported yet')
-
         self.eq = kk.kk()
         self.eq.Open(shot, experiment, diag, edition)
         self.times = self.equ[0]('time').data
@@ -76,7 +72,7 @@ class ShotfileBackend(Backend):
     def getAvailableTimes(self):
         return self.times
  
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li']
+    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li','trace-Vol']
 
     def getAvailablePlotNames(self):
         return self.__plotNames
@@ -180,7 +176,6 @@ class ShotfileBackend(Backend):
                 if not qsap is None and not qsam is None:
                     #qsap = qsap(tBegin=t, tEnd=t)
                     #qsam = qsam(tBegin=t, tEnd=t)
-                    #embed()
                     data.extend([{'x': qsap.area.data[t_ind], 'y': np.abs(qsap.data)[t_ind], 'ls': '--'},
                                 {'x': qsam.area.data[t_ind], 'y': np.abs(qsam.data)[t_ind], 'ls': '--'}])
 
@@ -233,23 +228,28 @@ class ShotfileBackend(Backend):
         try:
             MES, FIT, UNC = self.lookfordata(name)
             if not 'signalGroup' in str(type(MES)):
-                qlist = ['q0', 'q25', 'q50', 'q75', 'q95']
-                if name in qlist:
-                    q = abs(MES.data)
-                    uncplus = '%s_plus'%name
-                    UNCplus = self.getData(uncplus)
-                    uncminus = '%s_minu'%name
-                    UNCminus = self.getData(uncminus)
-                    data=[{'x': MES.time, 'y': q, 'ls': '-'},{'x': t,'c': 'k'},
-                          {'x': MES.time, 'y': abs(UNCplus.data), 'ls': '--'}, {'x' : MES.time, 'y': abs(UNCminus.data), 'ls': '--'}]
-                    return PlotBunch(kind='trace',data=data, setting={'ylim':(0,10)})
+                if 'q' in name:
+                    qlist = ['q0', 'q25', 'q50', 'q75', 'q95']
+                    if name in qlist:
+                        q = abs(MES.data)
+                        uncplus = '%s_plus'%name
+                        UNCplus = self.getData(uncplus)
+                        uncminus = '%s_minu'%name
+                        UNCminus = self.getData(uncminus)
+                        data=[{'x': MES.time, 'y': q, 'ls': '-'},{'x': t,'c': 'k'},
+                              {'x': MES.time, 'y': abs(UNCplus.data), 'ls': '--'}, {'x' : MES.time, 'y': abs(UNCminus.data), 'ls': '--'}]
+                        return PlotBunch(kind='trace',data=data, setting={'ylim':(0,10)})
+                elif name == 'Vol':
+                    data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
+                    return PlotBunch(kind='trace',data=data)
                 else:
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
                     if not UNC is  None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
-
+    
                     return PlotBunch(kind='trace',data=data)
+
 
             elif name == 'ecrhmax':
                 data = [{'x': t,'c': 'k'}]
@@ -258,19 +258,18 @@ class ShotfileBackend(Backend):
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,0,i], 'label':'gyro%i'%(i+1),  'c': colour, 'exc' : True})
-                if ecrh == 'z':
+                elif ecrh == 'z':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,1,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
-                if ecrh == 'y':
+                elif ecrh == 'y':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,2,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
-                if ecrh == 'rho':
+                elif ecrh == 'rho':
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
-
                 return PlotBunch(kind='trace',data=data)
 
             else:
@@ -305,6 +304,10 @@ class ShotfileBackend(Backend):
 
         if name == 'pfm' and workaround_time != None:
             return self.eq.get_pfm(workaround_time)
+
+        #if name == 'Vol':
+            #self._cache[name] = self.equ[2](name)
+            
 
         #workaround for the loading of the data from the equilibrium shotfiles
         if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self._cache:
@@ -344,14 +347,21 @@ class ShotfileBackend(Backend):
 
         if name not in self._cache:
             self._cache[name] = None   #returned in the case that nothing was found
-            #embed()
             for diag in self.equ:
-                if name in diag.getObjectNames().values():
-                    try:# solving Exception: Error by DDsinfo (8.1): status of signal doesn't permit access
+                if name == 'Vol' and 'IDG' in diag.getObjectNames().values():
+                    try:
                         self._cache[name] = copy(diag(name))
                     except Exception:
                         pass
                     break
+
+                else:
+                    if name in diag.getObjectNames().values() and name != 'Vol':
+                        try:# solving Exception: Error by DDsinfo (8.1): status of signal doesn't permit access
+                            self._cache[name] = copy(diag(name))
+                        except Exception:
+                            pass
+                        break
   
         return self._cache[name]
 
@@ -394,16 +404,11 @@ class ShotfileBackend(Backend):
             #Ri = self.getData('Ri').data[t_index]
             #Zj = self.getData('Zj').data[t_index]
             #pfm = self.getData('PFM').data[t_index]
-            #embed()
             
             tmp = self.getData('pfm', t)
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
             psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
-            #pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
-            #embed()
-            
-            #ikCAT = self.getData('ikCAT').data
             #PFxx = self.getData('PFxx').data
             #sep_ind = np.array([2,0,3,1])[ikCAT-1]
             #psiAx,psiSep = PFxx[0,:], PFxx[sep_ind,np.arange(len(mag))]        
@@ -436,7 +441,6 @@ class ShotfileBackend(Backend):
                             data.append({'x':R, 'y':z, 'ls':'-', 'c':colour, 'gyro_ind':i})
                         data.append({'x':MESmax.data[t_index,0,i], 'y':MESmax.data[t_index,1,i], 'ls':'', 'marker':'o', 'c':colour, 'gyro_ind':i})
                         gyrind.append(i)
-                #embed()
 
             return PlotBunch(kind='contour', data=data)
 
@@ -476,8 +480,8 @@ class ShotfileBackend(Backend):
                 return self.tracedata('bver', t)
             elif name == 'trace-bver/ahor':
                 return self.tracedata('k', t)
-            #elif name == 'trace-Vol':
-                #return self.tracedata('Vol', t)
+            elif name == 'trace-Vol':
+                return self.tracedata('Vol', t)
             elif name == 'trace-XPfdif':
                 return self.tracedata('XPfdif', t)
             elif name == 'trace-delR':
@@ -524,35 +528,6 @@ class ShotfileBackend(Backend):
         elif 'profile' in name:
             if name == 'profile-q':
                 return self.profiledata('q_sa', t, t_ind)
-                '''qsa = self.getData('q_sa')
-                if qsa is None:
-                    qsa = self.getData('Qpsi',t)
-                else:
-                    qsa = qsa(tBegin=t, tEnd=t)
-
-                ind = np.diff(np.abs(qsa.data)) > 0 #detect resonance surfaces only in the region of positive shear
-                ind[-1] = True
-                rho = qsa.area.data[ind]
-                rho[0] = np.nan  #diffifulties with elevated profiles and q=1
-                q = abs(qsa.data)
-                
-                XIQ1  = np.interp(1,q[ind],rho,left=np.nan)
-                XIQ2  = np.interp(2,q[ind],rho,left=np.nan)
-                XIQ3_2= np.interp(1.5,q[ind],rho,left=np.nan)
-                #XIQ3  = np.interp(3,q[ind],rho,left=np.nan)
-
-                data=[{'x':  qsa.area.data, 'y': q},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
-                      {'y': 1,'c':'k','alpha':.3}, {'y': 2,'c':'k','alpha':.3},{'y': 1.5,'c':'k','alpha':.3}]
-                
-                qsap = self.getData('q_sa_plu')
-                qsam = self.getData('q_sa_min')
-                if not qsap is None and not qsam is None:
-                    qsap = qsap(tBegin=t, tEnd=t)
-                    qsam = qsam(tBegin=t, tEnd=t)
-                    data.extend([{'x': qsap.area.data, 'y': np.abs(qsap.data), 'ls': '--'},
-                                {'x': qsam.area.data, 'y': np.abs(qsam.data), 'ls': '--'}])
-   
-                return PlotBunch(data=data,setting={'ylim':(0, 10),'xlim':(0,1)})'''
                 
             elif name == 'profile-pressure':
                 return self.profiledata('pres', t, t_ind)
