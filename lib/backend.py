@@ -347,7 +347,10 @@ class ShotfileBackend(Backend):
             #embed()
             for diag in self.equ:
                 if name in diag.getObjectNames().values():
-                    self._cache[name] = copy(diag(name))
+                    try:# solving Exception: Error by DDsinfo (8.1): status of signal doesn't permit access
+                        self._cache[name] = copy(diag(name))
+                    except Exception:
+                        pass
                     break
   
         return self._cache[name]
@@ -397,6 +400,7 @@ class ShotfileBackend(Backend):
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
             psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
+            pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
             #embed()
             
             #ikCAT = self.getData('ikCAT').data
@@ -404,7 +408,7 @@ class ShotfileBackend(Backend):
             #sep_ind = np.array([2,0,3,1])[ikCAT-1]
             #psiAx,psiSep = PFxx[0,:], PFxx[sep_ind,np.arange(len(mag))]        
             
-            data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx}]
+            data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx,'levels':np.arange(0,2,.1)}]
 
             if 'pfl' in name:
                 pfm = pfm - psiSep
@@ -412,7 +416,7 @@ class ShotfileBackend(Backend):
                 lvls = np.insert(lvls, 0, psiSep)
                 data[0].update({'z': pfm,'levels':lvls})
 
-            elif 'rho' in name:
+            elif 'rho' in name and self.getData('ecrhpos') != None and self.getData('ecrhmax') != None:
                 MESs = [self.getData('ecrhpos'), self.getData('ecrhposu'), self.getData('ecrhposl')]
                 MESmax = self.getData('ecrhmax')
                 colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']

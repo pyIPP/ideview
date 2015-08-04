@@ -249,8 +249,9 @@ class View(tk.Tk):
 
         for name in available:
             boxvars[name] = tk.IntVar()
-        for i in range(availablegyros):
-            gyrovars[i] = tk.IntVar()
+        if availablegyros != None:
+            for i in range(availablegyros):
+                gyrovars[i] = tk.IntVar()
 
         def updatePlotSelection(name_=None, frame=None, row_=None):
             self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
@@ -319,7 +320,7 @@ class View(tk.Tk):
             applybutton3.grid(row = 0, column = 2)
             applybutton4.grid(row = 0, column = 2)
             applybutton5.grid(row = 0, column = 2)
-            if name_ == 'contour-rho':
+            if name_ == 'contour-rho' and availablegyros != None:
                 for j in range(availablegyros):
                     CB = tk.Checkbutton(f5, text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
                     CB.grid(row = i+j+2, column = 2, sticky = tk.W)
@@ -512,8 +513,7 @@ class View(tk.Tk):
                 #setting
                 if hasattr(ps, 'setting'): ax.set(**ps.setting)
                 #if 'contour' not in ps.kind: ax.legend(loc='best')
-                
-                if ps.kind == 'contour': 
+                if ps.kind == 'contour':
                     for s in self.structures:
                         if max(s['z']) - min(s['z']) < 1.5:
                             ax.fill(s['R'], s['z'], 'LightGray',zorder=99)
@@ -680,15 +680,14 @@ class View(tk.Tk):
                                 for coll in C.collections:
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
+                                #embed()
                                 z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
                                 p['levels'] = 1- p['levels']
     
                             self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
 
-            if ps.kind != 'contour' and self.__firstplot:
-                if key.split('-')[-1] != 'q' and ps.kind == 'timecontour':
-                    break
+            if self.__firstplot and key == 'timecontour-q':
                 leg = ax.legend(loc='upper right', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
