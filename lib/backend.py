@@ -400,7 +400,7 @@ class ShotfileBackend(Backend):
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
             psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
-            pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
+            #pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
             #embed()
             
             #ikCAT = self.getData('ikCAT').data
@@ -412,29 +412,30 @@ class ShotfileBackend(Backend):
 
             if 'pfl' in name:
                 pfm = pfm - psiSep
-                lvls = np.arange(pfm.min(), pfm.max(), 0.05)
-                lvls = np.insert(lvls, 0, psiSep)
+                lvls = np.sort(np.insert(np.arange(pfm.min(), pfm.max(), 0.05), 0, psiSep))
                 data[0].update({'z': pfm,'levels':lvls})
 
-            elif 'rho' in name and self.getData('ecrhpos') != None and self.getData('ecrhmax') != None:
-                MESs = [self.getData('ecrhpos'), self.getData('ecrhposu'), self.getData('ecrhposl')]
-                MESmax = self.getData('ecrhmax')
-                colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
+            elif 'rho' in name:
                 pfm = np.sqrt(np.abs((pfm-psiAx)/(psiSep-psiAx)))
                 data[0].update({'z': pfm,'levels':np.arange(0,2,.1)})
-                gyrind = []
-                for i in range(MESmax.data.shape[2]):
-                    colour = colours[i]
-                    for MES in MESs:
-                        R = MES.data[t_index,:,0,i]
-                        z = MES.data[t_index,:,1,i]
-                        ind = np.where((R==0) + (z==0))
-                        R = np.delete(R, ind)
-                        z = np.delete(z, ind)
 
-                        data.append({'x':R, 'y':z, 'ls':'-', 'c':colour, 'gyro_ind':i})
-                    data.append({'x':MESmax.data[t_index,0,i], 'y':MESmax.data[t_index,1,i], 'ls':'', 'marker':'o', 'c':colour, 'gyro_ind':i})
-                    gyrind.append(i)
+                if self.getData('ecrhpos') != None and self.getData('ecrhmax') != None:
+                    MESs = [self.getData('ecrhpos'), self.getData('ecrhposu'), self.getData('ecrhposl')]
+                    MESmax = self.getData('ecrhmax')
+                    colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
+                    gyrind = []
+                    for i in range(MESmax.data.shape[2]):
+                        colour = colours[i]
+                        for MES in MESs:
+                            R = MES.data[t_index,:,0,i]
+                            z = MES.data[t_index,:,1,i]
+                            ind = np.where((R==0) + (z==0))
+                            R = np.delete(R, ind)
+                            z = np.delete(z, ind)
+    
+                            data.append({'x':R, 'y':z, 'ls':'-', 'c':colour, 'gyro_ind':i})
+                        data.append({'x':MESmax.data[t_index,0,i], 'y':MESmax.data[t_index,1,i], 'ls':'', 'marker':'o', 'c':colour, 'gyro_ind':i})
+                        gyrind.append(i)
                 #embed()
 
             return PlotBunch(kind='contour', data=data)
