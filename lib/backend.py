@@ -69,8 +69,86 @@ class ShotfileBackend(Backend):
 
     def getAvailableTimes(self):
         return self.times
- 
-    __plotNames = ['profile-pressure', 'profile-pcon', 'profile-pressure/pcon', 'profile-q', 'profile-ECcur_tot', 'profile-ECcur_gyr', 'profile-Jpol_tot', 'profile-Jpol_pla', 'profile-Itps', 'profile-Itps_av', 'profile-Itfs', 'profile-Itfs_av', 'contour-pfl', 'contour-rho', 'trace-Wmhd', 'timecontour-pressure', 'timecontour-q', 'timecontour-Dpsi', 'timecontour-Iext', 'timecontour-pcon', 'timecontour-pol', 'timecontour-mse','timecontour-I_tor', 'timecontour-I_torcon', 'timecontour-Bprob', 'profile-I_tor', 'profile-Dpsi', 'res(profile)-Dpsi', 'profile-Iext', 'res(profile)-Iext', 'res(profile)-pcon', 'profile-pol', 'profile-mse', 'profile-I_torcon', 'profile-Bprob', 'res(profile)-Bprob', 'trace-Bprob', 'trace-Dpsi', 'trace-Iext', 'trace-Rmag', 'trace-Zmag', 'trace-Rin', 'trace-Raus', 'trace-betapol', 'trace-betapol+li/2', 'trace-Itor', 'trace-Rxpu', 'trace-Zxpu', 'trace-ahor', 'trace-bver', 'trace-bver/ahor', 'trace-XPfdif', 'trace-delR', 'trace-delZ', 'trace-q0', 'trace-q25', 'trace-q50', 'trace-q75', 'trace-q95', 'trace-delR_oben', 'trace-delR_unten', 'trace-k_oben', 'trace-k_unten', 'trace-dRxP', 'trace-eccd_tot', 'trace-Itax', 'trace-ecrhmax(R)', 'trace-ecrhmax(z)', 'trace-ecrhmax(y)', 'trace-ecrhmax(rho)', 'trace-li','trace-Vol']
+
+    # List of plots sorted by kind
+    # Respect the order!
+    __plotNames = ['profile-pressure',
+                   'profile-pcon',
+                   'profile-pressure/pcon',
+                   'profile-q',
+                   'profile-ECcur_tot',
+                   'profile-ECcur_gyr',
+                   'profile-Jpol_tot',
+                   'profile-Jpol_pla',
+                   'profile-Itps',
+                   'profile-Itps_av',
+                   'profile-Itfs',
+                   'profile-Itfs_av',
+                   'profile-pol',
+                   'profile-mse',
+                   'profile-I_torcon',
+                   'profile-Bprob',
+                   'profile-Dpsi',
+                   'profile-I_tor',
+                   'profile-Iext']
+
+    __plotNames += ['res(profile)-Dpsi',
+                    'res(profile)-Iext',
+                    'res(profile)-pcon',
+                    'res(profile)-Bprob']
+
+    __plotNames += ['trace-Wmhd',
+                    'trace-Bprob',
+                    'trace-Dpsi',
+                    'trace-Iext',
+                    'trace-Rmag',
+                    'trace-Zmag',
+                    'trace-Rin',                   
+                    'trace-Raus',
+                    'trace-betapol',
+                    'trace-betapol+li/2',
+                    'trace-Itor',
+                    'trace-Rxpu',
+                    'trace-Zxpu',
+                    'trace-ahor',
+                    'trace-bver',
+                    'trace-bver/ahor',
+                    'trace-XPfdif',
+                    'trace-delR',
+                    'trace-delZ',
+                    'trace-q0',
+                    'trace-q25',
+                    'trace-q50',
+                    'trace-q75',
+                    'trace-q95',
+                    'trace-delR_oben',
+                    'trace-delR_unten',
+                    'trace-k_oben',
+                    'trace-k_unten',
+                    'trace-dRxP',
+                    'trace-eccd_tot',
+                    'trace-Itax',
+                    'trace-ecrhmax(R)',
+                    'trace-ecrhmax(z)',
+                    'trace-ecrhmax(y)',
+                    'trace-ecrhmax(rho)',
+                    'trace-li',
+                    'trace-Vol']
+
+    __plotNames += ['timecontour-pressure',
+                    'timecontour-q',
+                    'timecontour-Dpsi',
+                    'timecontour-Iext',
+                    'timecontour-pcon',
+                    'timecontour-pol',
+                    'timecontour-mse',
+                    'timecontour-I_tor',
+                    'timecontour-I_torcon',
+                    'timecontour-Bprob']
+
+    __plotNames += ['contour-pfl',
+                    'contour-rho']
+
 
     def getAvailablePlotNames(self):
         return self.__plotNames
@@ -139,8 +217,8 @@ class ShotfileBackend(Backend):
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
-                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data,'marker':'_', 'ls':'', 'c':'k'},
-                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'marker':'_', 'ls':'', 'c':'k'}])
+                    data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls':'--', 'c':'k'},
+                                 {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'ls':'--', 'c':'k'}])
                 else:
                     data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data, 'ls':'--'},
                                  {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'ls': '--'}])
@@ -162,7 +240,7 @@ class ShotfileBackend(Backend):
                 XIQ3_2= np.interp(1.5,q[t_ind],rho,left=np.nan)
                 #XIQ3  = np.interp(3,q[ind],rho,left=np.nan)
 
-                data = [{'x':  qsa.area.data[t_ind], 'y': q[t_ind]},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
+                data = [{'x':  qsa.area.data[t_ind], 'y': q[t_ind], 'c':'k'},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
                       {'y': 1,'c':'k','alpha':.3}, {'y': 2,'c':'k','alpha':.3},{'y': 1.5,'c':'k','alpha':.3}]
                 
                 qsap = self.getData('q_sa_plu')
@@ -548,13 +626,13 @@ class ShotfileBackend(Backend):
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
                 
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},
-                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'c':'k', 'label':'constraint', 'exc': True}]
+                      {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'mew':2, 'ms':8, 'c':'k', 'label':'constraint', 'exc': True}]
                 
                 if not punc is None:
                     punc = punc(tBegin=t, tEnd=t)
                     data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True}, {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
                 if not pconunc is None:
-                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_', 'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_', 'ls': '', 'c':'k', 'exc': True}])
+                    data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_', 'mew': 2, 'ms':8, 'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_', 'mew':2, 'ms':8, 'ls': '', 'c':'k', 'exc': True}])
                 
                 return PlotBunch(data=data, setting={'ylim':(0, maxpres),'xlim':(0,1)})
 

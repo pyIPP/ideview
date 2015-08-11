@@ -1,6 +1,8 @@
 #!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
+print 'Starting ideview...'
+
 import os
 import platform
 
@@ -220,15 +222,19 @@ class View(tk.Tk):
         available = self.backend.getAvailablePlotNames()
         boxvars = {}
         kinds = []
+
+	# built tabs for plot selection from __plotNames -> order important
+
         for a in available:
             kind = a.split('-')[0]
             if kind not in kinds:
                 kinds.append(kind)
-        frames = []
+        frames = {}
+	framenames = {'profile':'Profiles', 'res(profile)':'Residua', 'trace':'Traces', 'timecontour':'Time contours', 
+                      'contour':'Contours'}
         for i, x in enumerate(kinds):
-            frames.append('f%s'%x)
-            frames[i] = ttk.Frame(n)
-            n.add(frames[i], text = kinds[i])
+            frames[x] = ttk.Frame(n)
+            n.add(frames[x], text = framenames[kinds[i]] if kinds[i] in framenames else kinds[i])
 
         selectedgyros = self.settings.selectedGyrotrons
         availablegyros = self.backend.getAvailableGyrotrons()
@@ -259,27 +265,32 @@ class View(tk.Tk):
             updatePlotSelection()
             updateSelectedGyrotrons()
 
-        def selectallgyrs(self):
+        def toggleallgyrs(self):
             i = 0
-            while i < len(allGyrCB):
-                allGyrCB[i].select()
+	    j = 0
+	    while i < len(allGyrCB):
+		j += gyrovars[i].get()
+		i += 1
+	    i = 0
+	    while i < len(allGyrCB):
+	        if j == len(allGyrCB):
+	            allGyrCB[i].deselect()
+                else:
+                    allGyrCB[i].select()
                 i += 1
             updatePlotSelection()
             updateSelectedGyrotrons()
 
         allNoneButtons = []
-        i = 0
-        while i < len(kinds):
-            NoneB = tk.Button(frames[i], text='None', command=partial(selectNone, self))
+        for key in frames:
+            NoneB = tk.Button(frames[key], text='None', command=partial(selectNone, self))
             allNoneButtons.append(NoneB)
-            i += 1
         for i, p in enumerate(allNoneButtons):
             allNoneButtons[i].grid(row=0, column=1, sticky=tk.W, padx = (10,20))
 
-        rowcounter = []
-        for i,x in enumerate(kinds):
-            rowcounter.append('rc%s'%x)
-            rowcounter[i] = 0
+        rowcounter = {}
+        for key in kinds:
+            rowcounter[key] = 0
         k = 0
         for name_ in available:
             kind, parameter = name_.split('-')
@@ -288,34 +299,14 @@ class View(tk.Tk):
 
         for i, name_ in enumerate(available):
             kind, parameter = name_.split('-')
-            if kind == 'profile':
-                cb = tk.Checkbutton(frames[0], text=parameter, variable=boxvars[name_],
-                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[0], i))
-                cb.grid(row = rowcounter[0], column = 2, sticky = tk.W, pady = 3.5)
-                rowcounter[0] += 1
-            if kind == 'contour':
-                cb = tk.Checkbutton(frames[1], text=parameter, variable=boxvars[name_],
-                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[1], i))
-                cb.grid(row = rowcounter[1], column = 2, sticky = tk.W, pady = 3.5)
-                rowcounter[1] += 1
-            if kind == 'timecontour':
-                cb = tk.Checkbutton(frames[2], text=parameter, variable=boxvars[name_],
-                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[2], i))
-                cb.grid(row = rowcounter[2], column = 2, sticky = tk.W, pady = 3.5)
-                rowcounter[2] += 1
-            if kind == 'trace':
-                cb = tk.Checkbutton(frames[3], text=parameter, variable=boxvars[name_],
-                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[3], i))
-                if rowcounter[3]>(k/2):
-                    cb.grid(row = rowcounter[3]-(k/2)-1, column = 3, sticky=tk.NW, padx = 5, pady = 3.5)
-                else:
-                    cb.grid(row = rowcounter[3], column = 2, sticky=tk.NW, padx = 5, pady = 3.5)
-                rowcounter[3] += 1
-            if kind == 'res(profile)':
-                cb = tk.Checkbutton(frames[4], text=parameter, variable=boxvars[name_],
-                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[4], i))
-                cb.grid(row = rowcounter[4], column = 2, sticky = tk.W, pady = 3.5)
-                rowcounter[4] += 1
+
+            cb = tk.Checkbutton(frames[kind], text=parameter, variable=boxvars[name_],
+                                onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[kind], i))
+	    if kind == 'trace' and rowcounter[kind]>(k/2): 
+            	cb.grid(row = rowcounter[kind]-(k/2)-1, column = 3, sticky = tk.W, padx = 4, pady = 3.5)
+	    else:
+            	cb.grid(row = rowcounter[kind],         column = 2, sticky = tk.W, pady = 3.5)
+            rowcounter[kind] += 1
 
 
 
@@ -325,26 +316,23 @@ class View(tk.Tk):
 
             allCheckboxes.append(cb)
 
-            allApplyButtons = []
-            x = 0
-            while x < len(kinds):
+            allApplyButtons = {}
 
-                allApplyButtons.append('applybutton%i'%x)
-                allApplyButtons[x] = tk.Button(frames[x], text='apply', command=self.apply_)
-                allApplyButtons[x].grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
-                x += 1
+            for key in kinds:
+                allApplyButtons[key] = tk.Button(frames[key], text='apply', command=self.apply_)
+                allApplyButtons[key].grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
 
             if name_ == 'contour-rho' and availablegyros != None:
                 for j in range(availablegyros):
-                    CB = tk.Checkbutton(frames[1], text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
-                    CB.grid(row = rowcounter[1]+j-1, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
+                    CB = tk.Checkbutton(frames['contour'], text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
+                    CB.grid(row = rowcounter['contour']+j-1, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
                     allCheckboxes.append(CB)
                     allGyrCB.append(CB)
                     if j in selectedgyros:
                         gyrovars[j].set(1)
                         CB.select()
-                AllGyrs = tk.Button(frames[1], text = 'all', command = partial(selectallgyrs, self))
-                AllGyrs.grid(row = rowcounter[1]+availablegyros, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
+                AllGyrs = tk.Button(frames['contour'], text = 'toggle', command = partial(toggleallgyrs, self))
+                AllGyrs.grid(row = rowcounter['contour']+availablegyros, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
 
         n.grid()
 
@@ -505,7 +493,7 @@ class View(tk.Tk):
                 self.axes[name] = self.viewfig.add_subplot(gs[xi,yi])
 
         if len(self.axes) > 0:
-            self.viewfig.tight_layout(pad=1.5, h_pad=0.2, w_pad=0.3)  
+            self.viewfig.tight_layout(pad=1.5, h_pad=0.25, w_pad=0.3)  
         self.canvas.draw()
 
     __firstplot = True
