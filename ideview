@@ -17,7 +17,7 @@ try:
     sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
     from lib.settings import Settings
     from lib.backend import ShotfileBackend
-
+    from collections import Counter
     import kk_abock as kk
     sys.path.append('/afs/ipp/home/g/git/python/repository/')
     from functools import partial
@@ -37,16 +37,12 @@ def fconf_on_click(event):
     """
     ax = event.inaxes
     full_screen_pos = (0.1, 0.1, 0.85, 0.85)
-    #print ax.get_position().bounds
-    #if (np.array(full_screen_pos) - np.array(ax.get_position().bounds)) <= 0.01:
-        #print 'Works'
     if ax is None:
         # Occurs when a region not in an axis is clicked...
         return
     if event.button is 2: # 2 middle mouse, 3 right mouse
         # On left click, zoom the selected axes
-        if not (np.abs(np.array(full_screen_pos) -
-np.array(ax.get_position().bounds))).sum() <= 0.01:
+        if not (np.abs(np.array(full_screen_pos) - np.array(ax.get_position().bounds))).sum() <= 0.01:
             ax._orig_position = ax.get_position()
             ax.set_position([0.1, 0.1, 0.85, 0.85])
             for axis in event.canvas.figure.axes:
@@ -173,10 +169,8 @@ class View(tk.Tk):
         button_forward = tk.Button(self.topframe, text=">", command=self.onNextButtonClick)
         button_forward.pack(side=tk.LEFT)
 
-        #self.timeslider = tk.Scale(self.topframe, orient="horizontal", command=self.scaleUpdated, from_=0, to=0, resolution=0)
         self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0)
         self.timeslider.bind("<ButtonRelease-1>", self.scaleUpdated)
-        #embed()
         self.timeslider.pack(side=tk.LEFT, fill=tk.X, expand=1)
 
         self.viewfig = Figure()
@@ -196,13 +190,6 @@ class View(tk.Tk):
 
         self.geometry(self.settings.windowConditions)
         self.bind("<Configure>", self.onResize)
-
-        #TODO  remove
-        #self.onLoadButtonClick()
-        #self.entryShot.delete(0, tk.END)
-        #self.entryShot.insert(0, "31113")
-        #self.onLoadButtonClick()
-        #self.viewSettings()
         
         #self.cid1 = self.viewfig.canvas.mpl_connect('button_press_event',self.MouseInteraction)
         self.cid2 = self.viewfig.canvas.mpl_connect('scroll_event',self.MouseWheelInteraction)
@@ -211,7 +198,6 @@ class View(tk.Tk):
         
         self.viewfig.canvas.mpl_connect('button_press_event', fconf_on_click)
 
-        #createToolTip(self.timeslider,'Can be controlled also by mouse wheel')
         createToolTip(button_backward,'Go backward by one timestep, (also right mouse button)')
         createToolTip(self.playButton,'Play,Stop, also controlled by mouse middle button and <space>')
         createToolTip(button_forward,'Go forward by one timestep, (also left mouse button)')
@@ -228,20 +214,20 @@ class View(tk.Tk):
         self.toplevel.resizable(0,0)
         self.toplevel.wm_title('Selection')
         n = ttk.Notebook(self.toplevel)
-        f1 = ttk.Frame(n)
-        f2 = ttk.Frame(n)
-        f3 = ttk.Frame(n)
-        f4 = ttk.Frame(n)
-        f5 = ttk.Frame(n)
-        n.add(f1, text='Profiles')
-        n.add(f2, text='Residua')
-        n.add(f3, text='Traces')
-        n.add(f4, text='Timecontours')
-        n.add(f5, text='Contours')
 
         selected = self.settings.selectedPlots
         available = self.backend.getAvailablePlotNames()
         boxvars = {}
+        kinds = []
+        for a in available:
+            kind = a.split('-')[0]
+            if kind not in kinds:
+                kinds.append(kind)
+        frames = []
+        for i, x in enumerate(kinds):
+            frames.append('f%s'%x)
+            frames[i] = ttk.Frame(n)
+            n.add(frames[i], text = kinds[i])
 
         selectedgyros = self.settings.selectedGyrotrons
         availablegyros = self.backend.getAvailableGyrotrons()
@@ -256,16 +242,13 @@ class View(tk.Tk):
         def updatePlotSelection(name_=None, frame=None, row_=None):
             self.settings.selectedPlots = [name for name in boxvars if boxvars[name].get()]
             j = len(self.settings.selectedPlots)
-            #if name_ in self.settings.selectedPlots:
             self.makeentry(name_, self.settings.selectedPlots, frame, j, row_)
-            #self.preparePlots()
-            #self.updatePlots()
 
         def updateSelectedGyrotrons():
             self.settings.selectedGyrotrons = [gyronum for gyronum in gyrovars if gyrovars[gyronum].get()]
-        
-        
+
         allCheckboxes = []
+        allGyrCB = []
 
         def selectNone(self):
             i=0
@@ -275,27 +258,29 @@ class View(tk.Tk):
             updatePlotSelection()
             updateSelectedGyrotrons()
 
+        def selectallgyrs(self):
+            i = 0
+            while i < len(allGyrCB):
+                allGyrCB[i].select()
+                i += 1
+            updatePlotSelection()
+            updateSelectedGyrotrons()
+
         allNoneButtons = []
-        None1 = tk.Button(f1, text='None', command=partial(selectNone, self))
-        allNoneButtons.append(None1)
-        None2 = tk.Button(f2, text='None', command=partial(selectNone, self))
-        allNoneButtons.append(None2)
-        None3 = tk.Button(f3, text='None', command=partial(selectNone, self))
-        allNoneButtons.append(None3)
-        None4 = tk.Button(f4, text='None', command=partial(selectNone, self))
-        allNoneButtons.append(None4)
-        None5 = tk.Button(f5, text='None', command=partial(selectNone, self))
-        allNoneButtons.append(None5)
+        i = 0
+        while i < len(kinds):
+            NoneB = tk.Button(frames[i], text='None', command=partial(selectNone, self))
+            allNoneButtons.append(NoneB)
+            i += 1
         for i, p in enumerate(allNoneButtons):
             allNoneButtons[i].grid(row=0, column=1, sticky=tk.W, padx = (10,20))
 
-        j1 = 0
-        j2 = 0
-        j3 = 0
-        j4 = 0
-        j5 = 0
+        rowcounter = []
+        for i,x in enumerate(kinds):
+            rowcounter.append('rc%s'%x)
+            rowcounter[i] = 0
         k = 0
-        for i, name_ in enumerate(available):
+        for name_ in available:
             kind, parameter = name_.split('-')
             if kind == 'trace':
                 k += 1
@@ -303,28 +288,35 @@ class View(tk.Tk):
         for i, name_ in enumerate(available):
             kind, parameter = name_.split('-')
             if kind == 'profile':
-                cb = tk.Checkbutton(f1, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f1, i))
-                cb.grid(row = j1, column = 2, sticky = tk.W, pady = 3.5)
-                j1 += 1
-            if kind == 'res(profile)':
-                cb = tk.Checkbutton(f2, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f2, i))
-                cb.grid(row = j2, column = 2, sticky = tk.W, pady = 3.5)
-                j2 += 1
-            if kind == 'trace':
-                cb = tk.Checkbutton(f3, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f3, i))
-                if j3>(k/2):
-                    cb.grid(row = j3-(k/2)-1, column = 3, sticky=tk.NW, padx = 5, pady = 3.5)
-                else:
-                    cb.grid(row = j3, column = 2, sticky=tk.NW, padx = 5, pady = 3.5)
-                j3 += 1
-            if kind == 'timecontour':
-                cb = tk.Checkbutton(f4, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f4, i))
-                cb.grid(row = j4, column = 2, sticky = tk.W, pady = 3.5)
-                j4 += 1
+                cb = tk.Checkbutton(frames[0], text=parameter, variable=boxvars[name_],
+                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[0], i))
+                cb.grid(row = rowcounter[0], column = 2, sticky = tk.W, pady = 3.5)
+                rowcounter[0] += 1
             if kind == 'contour':
-                cb = tk.Checkbutton(f5, text=parameter, variable=boxvars[name_], onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, f5, i))
-                cb.grid(row = j5, column = 2, sticky = tk.W, pady = 3.5)
-                j5 += 1
+                cb = tk.Checkbutton(frames[1], text=parameter, variable=boxvars[name_],
+                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[1], i))
+                cb.grid(row = rowcounter[1], column = 2, sticky = tk.W, pady = 3.5)
+                rowcounter[1] += 1
+            if kind == 'timecontour':
+                cb = tk.Checkbutton(frames[2], text=parameter, variable=boxvars[name_],
+                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[2], i))
+                cb.grid(row = rowcounter[2], column = 2, sticky = tk.W, pady = 3.5)
+                rowcounter[2] += 1
+            if kind == 'trace':
+                cb = tk.Checkbutton(frames[3], text=parameter, variable=boxvars[name_],
+                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[3], i))
+                if rowcounter[3]>(k/2):
+                    cb.grid(row = rowcounter[3]-(k/2)-1, column = 3, sticky=tk.NW, padx = 5, pady = 3.5)
+                else:
+                    cb.grid(row = rowcounter[3], column = 2, sticky=tk.NW, padx = 5, pady = 3.5)
+                rowcounter[3] += 1
+            if kind == 'res(profile)':
+                cb = tk.Checkbutton(frames[4], text=parameter, variable=boxvars[name_],
+                                    onvalue=1, offvalue=0, command=partial(updatePlotSelection, name_, frames[4], i))
+                cb.grid(row = rowcounter[4], column = 2, sticky = tk.W, pady = 3.5)
+                rowcounter[4] += 1
+
+
 
             if name_ in selected: 
                 boxvars[name_].set(1)
@@ -332,24 +324,26 @@ class View(tk.Tk):
 
             allCheckboxes.append(cb)
 
-            applybutton1 = tk.Button(f1, text='apply', command=self.apply_)
-            applybutton2 = tk.Button(f2, text='apply', command=self.apply_)
-            applybutton3 = tk.Button(f3, text='apply', command=self.apply_)
-            applybutton4 = tk.Button(f4, text='apply', command=self.apply_)
-            applybutton5 = tk.Button(f5, text='apply', command=self.apply_)
-            applybutton1.grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
-            applybutton2.grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
-            applybutton3.grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
-            applybutton4.grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
-            applybutton5.grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
+            allApplyButtons = []
+            x = 0
+            while x < len(kinds):
+
+                allApplyButtons.append('applybutton%i'%x)
+                allApplyButtons[x] = tk.Button(frames[x], text='apply', command=self.apply_)
+                allApplyButtons[x].grid(row = 1, column = 1, sticky=tk.W, padx = (10,30))
+                x += 1
+
             if name_ == 'contour-rho' and availablegyros != None:
                 for j in range(availablegyros):
-                    CB = tk.Checkbutton(f5, text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
-                    CB.grid(row = j5+j-1, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
+                    CB = tk.Checkbutton(frames[1], text = 'gyro%i'%(j+1), variable = gyrovars[j], onvalue = 1, offvalue = 0, command = partial(updateSelectedGyrotrons))
+                    CB.grid(row = rowcounter[1]+j-1, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
                     allCheckboxes.append(CB)
+                    allGyrCB.append(CB)
                     if j in selectedgyros:
                         gyrovars[j].set(1)
                         CB.select()
+                AllGyrs = tk.Button(frames[1], text = 'all', command = partial(selectallgyrs, self))
+                AllGyrs.grid(row = rowcounter[1]+availablegyros, column = 3, sticky = tk.W, padx = 2, pady = 3.5)
 
         n.grid()
 
@@ -440,6 +434,7 @@ class View(tk.Tk):
     structures = []
     loaded = False
 
+
     def load(self,diag, exp, shot, edition):
 
         self.loaded = False
@@ -467,6 +462,7 @@ class View(tk.Tk):
         if not self.loaded: self.updatePlots()
         self.loaded = True
 
+
     def preparePlots(self):
 
         self.viewfig.clf()
@@ -491,6 +487,7 @@ class View(tk.Tk):
         if Nc == 1 and Np == 1:
             gs = gridspec.GridSpec(Nh+Nt, 2)
         Cc, Cp, Ct = 0, 0, 0
+
         self.axes = {}
         for i, name in enumerate(self.settings.selectedPlots):
             if 'trace' in name or 'timecontour' in name:
@@ -511,6 +508,7 @@ class View(tk.Tk):
         self.canvas.draw()
 
     __firstplot = True
+
 
     def updatePlots(self):
         
@@ -550,6 +548,7 @@ class View(tk.Tk):
             if ps.kind in ('profile', 'trace'):
                 tmp = None
                 if self.__firstplot:
+                    ax.set_title(key.split('-')[-1])
                     ax.grid('on')
 
                 for j, p in enumerate(ps.data):
@@ -557,7 +556,6 @@ class View(tk.Tk):
                     cachekey = '%i%s%i'%(i, key, j)
                     x = p.pop('x') if 'x' in p else ax.get_xlim()
                     y = p.pop('y') if 'y' in p else ax.get_ylim()
-                    #yerr = p.pop('yerr') if 'yerr' in p else None
                     exc = p.pop('exc') if 'exc' in p else False
 
                     if np.size(x) == 1: x = [x,x]
@@ -571,24 +569,19 @@ class View(tk.Tk):
                         if not exc: #'normal' profiles and traces
                             label = key.split('-')[-1] if '-' in key and j==0 else None
                             tmp, =  ax.plot(x, y, label=label,color=c, **p)
-                            #for errorbars in constraints
-                            '''if yerr is not None:
-                                tmp, = ax.errorbar(x,y,yerr=yerr, label=label,color=c, **p)
-                            else:
-                                tmp, =  ax.plot(x, y, label=label,color=c, **p)'''
                         else:       #exceptions like residua
                             tmp, =  ax.plot(x, y, **p)
 
                         self._linecache[cachekey] = tmp
                         
             elif ps.kind == 'timecontour':
+
                 if self.__firstplot:
+                    ax.set_title(key.split('-')[-1])
                     ax.grid('on')
                     
                 for j, p in enumerate(ps.data):
                     cachekey = '%i%s%i'%(i, key, j)
-                    #print cachekey, self._linecache.keys()
-                    #if i==5: embed()
                     
                     if not 'z' in p:
                         x = p.pop('x') if 'x' in p else ax.get_xlim()
@@ -618,17 +611,20 @@ class View(tk.Tk):
                                 for l in range(len(labels)):
                                     tmp.collections[l].set_label(labels[l])
 
-                            ax.set_title(key.split('-')[-1])
                             self._linecache[cachekey] = tmp
                             
                             
             elif ps.kind == 'contour':
+
+                if self.__firstplot:
+                    ax.set_title(key.split('-')[-1])
+
                 if (len(ps.data) > 1):   #ecrhpos
                     
                     for j, p in enumerate(ps.data):
                         cachekey = '%i%s%i'%(i, key, j)
+
                         if 'z' not in p and (j>0):
-                            #embed()
                             
                             x = p.pop('x') if 'x' in p else ax.get_xlim()
                             y = p.pop('y') if 'y' in p else ax.get_ylim()
@@ -674,6 +670,7 @@ class View(tk.Tk):
                                 p['levels'] = 1- p['levels']
     
                             self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
+
                 else:
     
                     for j, p in enumerate(ps.data):
@@ -695,15 +692,13 @@ class View(tk.Tk):
                             if self.__firstplot:
                                 ax.set_aspect('equal') 
                                 ax.axis([1,2.2,-1.2,1.1 ])
-                                ax.set_title(key.split('-')[-1])
         
                             if cachekey in self._linecache:
                                 C = self._linecache[cachekey]
                                 for coll in C.collections:
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
-                                #embed()
-                                z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
+                                z = 1 - z
                                 p['levels'] = 1- p['levels']
     
                             self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
@@ -713,7 +708,13 @@ class View(tk.Tk):
                 leg = ax.legend(loc='upper right', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
-                    legobj.set_linewidth(2.0)                
+                    legobj.set_linewidth(2.0)
+
+            if self.__firstplot and ('ecrhmax' in key or 'ECcur_gyr' in key):
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
 
         self.__firstplot = False
 
@@ -731,4 +732,3 @@ if __name__ == "__main__":
     
     app.title('Equlibrium viewer')
     app.mainloop()
-

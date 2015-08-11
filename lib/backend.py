@@ -4,7 +4,6 @@ from IPython import embed
 from copy import copy,deepcopy
 sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
 from lib.bunch import PlotBunch
-#from lib.settings import Settings
 import dd_20140805 as dd
 import kk_abock as kk
 sys.path.append('/afs/ipp/home/g/git/python/repository/')
@@ -33,7 +32,6 @@ class ShotfileBackend(Backend):
         self.edition = edition
         self.equ = []
         self.openedEditions = {}
-        #self.settings = Settings()
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
         self.openedEditions[diag] = self.equ[-1].edition
         try:
@@ -107,7 +105,6 @@ class ShotfileBackend(Backend):
                 if FIT is None:
                     fit = '%sfit' %name
                     FIT = self.getData(fit)
-            # workaround:
             if MES.area is None:
                 lookforab = '%s_rp'%name
                 MES.area = self.getData(lookforab)
@@ -136,13 +133,12 @@ class ShotfileBackend(Backend):
             MES_Area_data = MES.area.data[0 if shape[0]==1 else t_ind]
             MES_Data = MES.data[t_ind]
             if name != 'q_sa' and name != 'eccurgyr':
-                data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-'}]
+                data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-', 'c':'k'}]
 
             
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
-                    data[0].update({'c':'k'})
                     data.extend([{'x': MES_Area_data, 'y': MES_Data + UNC_Data,'marker':'_', 'ls':'', 'c':'k'},
                                  {'x': MES_Area_data, 'y': MES_Data-UNC_Data, 'marker':'_', 'ls':'', 'c':'k'}])
                 else:
@@ -209,8 +205,6 @@ class ShotfileBackend(Backend):
             tmparray = np.array([RES])
             RESarray = np.append(RESarray,tmparray)
      
-            #data=[{'y': 0,'ls':'--','c':'k'}]
-            # {'x': MES.area.data[0], 'y':RESarray,'marker':'+','ls':'', 'label': '%s residuum'%name, }
             data = []
             for i, y in enumerate(RESarray):
                 if i == 0:
@@ -305,10 +299,6 @@ class ShotfileBackend(Backend):
         if name == 'pfm' and workaround_time != None:
             return self.eq.get_pfm(workaround_time)
 
-        #if name == 'Vol':
-            #self._cache[name] = self.equ[2](name)
-            
-
         #workaround for the loading of the data from the equilibrium shotfiles
         if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self._cache:
             
@@ -401,17 +391,11 @@ class ShotfileBackend(Backend):
 
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
-            #Ri = self.getData('Ri').data[t_index]
-            #Zj = self.getData('Zj').data[t_index]
-            #pfm = self.getData('PFM').data[t_index]
             
             tmp = self.getData('pfm', t)
             Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
 
-            psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
-            #PFxx = self.getData('PFxx').data
-            #sep_ind = np.array([2,0,3,1])[ikCAT-1]
-            #psiAx,psiSep = PFxx[0,:], PFxx[sep_ind,np.arange(len(mag))]        
+            psiAx, psiSep = self.getData('PFxx').data[t_index, :2]        
             
             data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx,'levels':np.arange(0,2,.1)}]
 
