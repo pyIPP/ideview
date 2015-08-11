@@ -13,6 +13,7 @@ try:
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
     import matplotlib.gridspec as gridspec
     from matplotlib.figure import Figure
+    from matplotlib.ticker import ScalarFormatter 
     from IPython import embed
     sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
     from lib.settings import Settings
@@ -504,7 +505,7 @@ class View(tk.Tk):
                 self.axes[name] = self.viewfig.add_subplot(gs[xi,yi])
 
         if len(self.axes) > 0:
-            self.viewfig.tight_layout(pad=3.5)  
+            self.viewfig.tight_layout(pad=1.5, h_pad=0.2, w_pad=0.3)  
         self.canvas.draw()
 
     __firstplot = True
@@ -535,6 +536,7 @@ class View(tk.Tk):
                 ax.cla()
                 #setting
                 if hasattr(ps, 'setting'): ax.set(**ps.setting)
+
                 if ps.kind == 'contour':
                     for s in self.structures:
                         if max(s['z']) - min(s['z']) < 1.5:
@@ -544,6 +546,12 @@ class View(tk.Tk):
                 elif (not hasattr(ps, 'setting') or not 'xlim' in  ps.setting) and ps.kind != 'profile':
                     ax.set_xlim(self.backend.getAvailableTimes().min(), 
                                 self.backend.getAvailableTimes().max())
+
+                if ps.kind != 'contour':
+                    formatter = ScalarFormatter(useMathText=True)
+                    formatter.set_scientific(True)
+                    formatter.set_powerlimits((-3,3))
+                    ax.yaxis.set_major_formatter(formatter)
 
             if ps.kind in ('profile', 'trace'):
                 tmp = None
