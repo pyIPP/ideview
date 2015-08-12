@@ -3,15 +3,14 @@
 
 print 'Starting ideview...'
 
-import os
-import platform
+import platform, sys
 
 if platform.system() != 'Linux':
     print 'Please use "toksXX". i.e. "ssh toksXX" where "XX" means numbers between 01-06'
     sys.exit()
 
 try:
-    import sys, numpy as np, matplotlib.pyplot as plt
+    import numpy as np, matplotlib.pyplot as plt
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
     import matplotlib.gridspec as gridspec
     from matplotlib.figure import Figure
@@ -20,12 +19,9 @@ try:
     sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
     from lib.settings import Settings
     from lib.backend import ShotfileBackend
-    from collections import Counter
     import kk_abock as kk
     sys.path.append('/afs/ipp/home/g/git/python/repository/')
     from functools import partial
-
-
     from tooltip import createToolTip
 
 except ImportError, e:
@@ -72,7 +68,6 @@ import ttk
 
 #TODO Allow comparims with more different equlibria (TRA,EQH,i...)
 #TODO add my special equilibria? 
-
 
 # config.py? 
 
@@ -493,7 +488,7 @@ class View(tk.Tk):
                 self.axes[name] = self.viewfig.add_subplot(gs[xi,yi])
 
         if len(self.axes) > 0:
-            self.viewfig.tight_layout(pad=1.5, h_pad=0.25, w_pad=0.3)  
+            self.viewfig.tight_layout(pad=1.5, h_pad=0.3, w_pad=0.3)  
         self.canvas.draw()
 
     __firstplot = True
