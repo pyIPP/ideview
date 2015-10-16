@@ -24,8 +24,7 @@ try:
     import kk_abock as kk
     sys.path.append('/afs/ipp/home/g/git/python/repository/')
     from functools import partial
-
-
+    import matplotlib.animation as manimation
     from tooltip import createToolTip
 
 except ImportError, e:
@@ -107,6 +106,53 @@ class View(tk.Tk):
     def status(self, text):
         self.statusbar.setText(text)
 
+    def movie(self):
+        title_ = self.entrytitle.get()
+        FPS = self.entryFPS.get()
+        t_begin = float(self.entry_t_begin.get())
+        t_end = float(self.entry_t_end.get())
+        self.recmenu.destroy()
+        self.timeslider.set(t_begin)
+        self.updatePlots()
+        try:
+            FFMpegWriter = manimation.writers['ffmpeg']
+        except KeyError, e:
+            print e
+            print '\nPlease load ffmpeg-module fitst. Do "module load ffmpeg" as command.'
+        metadata = dict(title=title_)
+        writer = FFMpegWriter(fps=FPS, metadata=metadata)
+        t_ind_begin = np.abs(self.backend.getData('time').data - t_begin).argmin()
+        t_ind_end = np.abs(self.backend.getData('time').data - t_end).argmin()
+        steps = t_ind_end - t_ind_begin
+        self.waitWin = tk.Toplevel(self)
+        self.waitWin.resizable(0,0)
+        self.waitWin.wm_title('')
+        x = self.playButton.winfo_rootx()
+        y = self.playButton.winfo_rooty()+100
+        self.waitWin.wm_geometry('300x100+%d+%d'%(x,y))
+        n = ttk.Notebook(self.waitWin)
+        wait = tk.Label(self.waitWin, text='Please wait...')
+        wait.pack()
+        with writer.saving(self.viewfig, '%s.mp4'%title_, steps):
+            self.playing = True
+            for i in range(steps):
+                if not self.playing:
+                    self._job = None
+                    return
+                res = self.timeslider.config()['resolution'][-1]
+                to = self.timeslider.config()['to'][-1]
+                from_ = self.timeslider.config()['from'][-1]
+                self.timeslider.set(self.timeslider.get() + res)
+                self.updatePlots()
+                self._job = self.after(10, self.playLoop)
+                if i == steps-1:
+                    self.playButton.configure(text=self.playString)
+                    self.playing = False            
+                    self.status('')
+                    self.waitWin.destroy()
+                writer.grab_frame()
+        
+        
     def initialize(self):
         self.settings = Settings()
 
@@ -171,6 +217,9 @@ class View(tk.Tk):
 
         button_forward = tk.Button(self.topframe, text=">", command=self.onNextButtonClick)
         button_forward.pack(side=tk.LEFT)
+
+        button_record = tk.Button(self.topframe, text="REC", command = self.onRecButtonClick)
+        button_record.pack(side=tk.LEFT)
 
         self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0)
         self.timeslider.bind("<ButtonRelease-1>", self.scaleUpdated)
@@ -387,6 +436,43 @@ class View(tk.Tk):
             btn.configure(text=self.playString)
             self.playing = False            
             self.status('')
+
+    def onRecButtonClick(self, event=None):
+        if not self.loaded:
+            print 'Please load a shot first.'
+            return
+        self.Time_ = self.backend.getAvailableTimes()
+        self.recmenu = tk.Toplevel(self)
+        self.recmenu.resizable(0,0)
+        self.recmenu.wm_title('Record Menu')
+        x = self.playButton.winfo_rootx()
+        y = self.playButton.winfo_rooty()+100
+        self.recmenu.wm_geometry('400x200+%d+%d'%(x,y))
+        n = ttk.Notebook(self.recmenu)
+        label_1 = tk.Label(self.recmenu, text='Title of the sequence:')
+        label_1.grid(row=1, column=1, sticky=tk.E, pady = 4)
+        setattr(self, 'entrytitle', tk.Entry(self.recmenu, width=20))
+        entry_1 = getattr(self,'entrytitle')
+        entry_1.grid(row=1, column=2, sticky=tk.W, pady = 4, columnspan = 3)
+        label_2 = tk.Label(self.recmenu, text='Frames per second:')
+        label_2.grid(row=2, column=1, sticky=tk.E, pady = 4)
+        setattr(self, 'entryFPS', tk.Entry(self.recmenu, width=5))
+        entry_2 = getattr(self,'entryFPS')
+        entry_2.grid(row=2, column=2, sticky=tk.W, pady = 4)
+        label_3 = tk.Label(self.recmenu, text='From t=')
+        label_3.grid(row=3, column=1, sticky=tk.E, pady = 4)
+        setattr(self, 'entry_t_begin', tk.Entry(self.recmenu, width=5))
+        entry_3 = getattr(self,'entry_t_begin')
+        entry_3.grid(row=3, column=2, sticky=tk.W, pady = 4)
+        entry_3.insert(0, self.Time_.min())
+        label_4 = tk.Label(self.recmenu, text='to t=')
+        label_4.grid(row=3, column=3, sticky=tk.E, pady = 4)
+        setattr(self, 'entry_t_end', tk.Entry(self.recmenu, width=5))
+        entry_4 = getattr(self,'entry_t_end')
+        entry_4.grid(row=3, column=4, sticky=tk.W, pady = 4)
+        entry_4.insert(0, self.Time_.max())
+        submit = tk.Button(self.recmenu, text= 'ok', command=self.movie)
+        submit.grid(row=5, column=2, pady = 4)
 
     def playLoop(self):
         if not self.playing:
@@ -712,11 +798,36 @@ class View(tk.Tk):
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
 
-	    if self.__firstplot and 'ECcur_gyr' in key:
+            if self.__firstplot and 'ECcur_gyr' in key:
                 leg = ax.legend(loc='best', fancybox=True, prop={'size':9})
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
+
+            if self.__firstplot and key == 'profile-ECcur_tot+j_BS+j_nbcd':
+                leg = ax.legend(loc='lower right', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+    
+            if self.__firstplot and key == 'profile-T_e+T_i':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+    
+            if self.__firstplot and key == 'profile-n_e+n_i':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+
+            if self.__firstplot and key == 'trace-pol':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                print '\npol: just channel 2 available\n'
 
 
         self.__firstplot = False
