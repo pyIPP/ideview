@@ -303,7 +303,8 @@ class ShotfileBackend(Backend):
 
                 data.extend([{'x': Valx, 'y': Valy + Unc, 'ls':'--'},
                                  {'x': Valx, 'y': Valy- Unc, 'ls': '--'}])
-
+                XMIN = 0
+                XMAX = 1.2
             elif name == 'eccurtot':
                 data = []
                 eccurtot = self.getData('eccurtot')
@@ -320,10 +321,11 @@ class ShotfileBackend(Backend):
                     YMAX = np.nanmax(j_BS.data)
                 if (YMAX < np.nanmax(j_nbcd.data)):
                     YMAX = np.nanmax(j_nbcd.data)
-
+                XMIN = 0
+                XMAX = 1.2
             elif name == 'cde_te':
                 data = []
-                YMAX = 0
+                YMAX = 10e3
                 YMIN = 0
                 T_e = self.getData('cde_te')
                 T_i = self.getData('cde_ti')
@@ -334,14 +336,14 @@ class ShotfileBackend(Backend):
                 data.extend([{'x':Area_base, 'y':DataT_i, 'marker':'', 'ls':'-', 'c':'b', 'label':'T_i', 'exc': True}])
                 XMAX = T_e.area.data.max() if (T_e.area.data.max() < 1000) else 1
                 XMIN = T_e.area.data.min() if (T_e.area.data.min() > -1000) else 0
-                if YMIN > np.nanmin(T_e.data):
-                    YMIN = np.nanmin(T_e.data)
-                if YMIN > np.nanmin(T_i.data):
-                    YMIN = np.nanmin(T_i.data)
-                if YMAX < np.nanmax(T_e.data):
-                    YMAX = np.nanmax(T_e.data)
-                if YMAX < np.nanmax(T_i.data):
-                    YMAX = np.nanmax(T_i.data)
+                #if YMIN > np.nanmin(T_e.data):
+                #    YMIN = np.nanmin(T_e.data)
+                #if YMIN > np.nanmin(T_i.data):
+                #    YMIN = np.nanmin(T_i.data)
+                #if YMAX < np.nanmax(T_e.data):
+                #    YMAX = np.nanmax(T_e.data)
+                #if YMAX < np.nanmax(T_i.data):
+                #    YMAX = np.nanmax(T_i.data)
 
             elif name == 'cde_ne':
                 data = []
