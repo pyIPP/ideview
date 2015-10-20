@@ -201,7 +201,7 @@ class ShotfileBackend(Backend):
                     FIT.area = self.getData(lookforab)
 
             if name == 'It':
-                lookforab = 'rhop_It'
+                lookforab = 'R_Itor' # 'rhop_It'
                 MES.area = self.getData(lookforab)
 
 
@@ -282,29 +282,31 @@ class ShotfileBackend(Backend):
                 else:
                     data.extend([{'x': MES.area.data[t_ind], 'y': total.data[t_ind, :], 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
 
-            elif name == 'It':
-                Valy = np.array([])
-                Valx = np.array([])
-                Unc = np.array([])
-                MIN = 1
-                for i in range(MES_Area_data.shape[0]):
-                    if MES_Area_data[i] < MIN:
-                        I = i
-                        MIN = MES_Area_data[i]
-                for i in range(I):
-                    if (I-i > 0) and (I+i < MES_Area_data.shape[0]):
-                        MEANy = (MES_Data[I+i]+MES_Data[I-i])/2
-                        MEANx = (MES_Area_data[I+i]+MES_Area_data[I-i])/2
-                        MEANunc = (UNC_Data[I+i]+UNC_Data[I-i])/2
-                        Valy = np.append(Valy,[MEANy])
-                        Valx = np.append(Valx,[MEANx])
-                        Unc = np.append(Unc,[MEANunc])
-                data = [{'x':Valx, 'y':Valy, 'marker':'', 'ls':'-', 'c':'k'}]
-
-                data.extend([{'x': Valx, 'y': Valy + Unc, 'ls':'--'},
-                                 {'x': Valx, 'y': Valy- Unc, 'ls': '--'}])
-                XMIN = 0
-                XMAX = 1.2
+            #elif name == 'It':
+            #    embed()
+            #    Valy = np.array([])
+            #    Valx = np.array([])
+            #    Unc = np.array([])
+            #    MIN = 1
+            #    data = [
+                #for i in range(MES_Area_data.shape[0]):
+                #    if MES_Area_data[i] < MIN:
+                #        I = i
+                #        MIN = MES_Area_data[i]
+                #for i in range(I):
+                #    if (I-i > 0) and (I+i < MES_Area_data.shape[0]):
+                #        MEANy = (MES_Data[I+i]+MES_Data[I-i])/2
+                #        MEANx = (MES_Area_data[I+i]+MES_Area_data[I-i])/2
+                #        MEANunc = (UNC_Data[I+i]+UNC_Data[I-i])/2
+                #        Valy = np.append(Valy,[MEANy])
+                #        Valx = np.append(Valx,[MEANx])
+                #        Unc = np.append(Unc,[MEANunc])
+                #data = [{'x':Valx, 'y':Valy, 'marker':'', 'ls':'-', 'c':'k'}]
+                #
+                #data.extend([{'x': Valx, 'y': Valy + Unc, 'ls':'--'},
+                #                 {'x': Valx, 'y': Valy- Unc, 'ls': '--'}])
+                #XMIN = 0
+                #XMAX = 1.2
             elif name == 'eccurtot':
                 data = []
                 eccurtot = self.getData('eccurtot')

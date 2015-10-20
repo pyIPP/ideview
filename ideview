@@ -539,7 +539,8 @@ class View(tk.Tk):
 
         self.viewfig.clf()
         self.__firstplot = True
-        plt.rc('legend',**{'fontsize':'12'})
+        #plt.rc('legend',**{'fontsize':'9'})
+        plt.rc('font',**{'size':'9'})
         s = ' '.join(self.settings.selectedPlots)
         Nc = s.count('contour') - s.count('timecontour')
         Np = s.count('profile')
@@ -576,7 +577,7 @@ class View(tk.Tk):
                 self.axes[name] = self.viewfig.add_subplot(gs[xi,yi])
 
         if len(self.axes) > 0:
-            self.viewfig.tight_layout(pad=1.5, h_pad=0.3, w_pad=0.3)  
+            self.viewfig.tight_layout(pad=1.5, h_pad=0.5, w_pad=0.3)  
         self.canvas.draw()
 
     __firstplot = True
