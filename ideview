@@ -562,11 +562,14 @@ class View(tk.Tk):
         Cc, Cp, Ct = 0, 0, 0
 
         self.axes = {}
+        lasttrace = None
         for i, name in enumerate(self.settings.selectedPlots):
             if 'trace' in name or 'timecontour' in name:
                 Ct += 1
-                self.axes[name] = self.viewfig.add_subplot(gs[-Ct, :-Nc]) if Nc != 0 else \
-                                  self.viewfig.add_subplot(gs[-Ct, :])
+                self.axes[name] = self.viewfig.add_subplot(gs[-Ct, :-Nc], sharex=lasttrace) if Nc != 0 else \
+                                  self.viewfig.add_subplot(gs[-Ct, :], sharex=lasttrace)
+                if lasttrace == None: lasttrace = self.axes[name]
+                    
             elif 'contour' in name:
                 Cc += 1
                 self.axes[name] = self.viewfig.add_subplot(gs[:, -Cc])
@@ -825,7 +828,7 @@ class View(tk.Tk):
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
-                print '\npol: just channel 2 available\n'
+                print '\npol: just channels 1,2 available\n'
 
 
         self.__firstplot = False

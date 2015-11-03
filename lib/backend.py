@@ -315,14 +315,18 @@ class ShotfileBackend(Backend):
                 data.extend([{'x' : MES_Area_data, 'y': eccurtot.data[t_ind], 'marker':'', 'ls':'-', 'c':'k', 'label':'ECcur_tot', 'exc': True}])
                 data.extend([{'x' : MES_Area_data, 'y': j_BS.data[t_ind], 'marker':'', 'ls':'-', 'c':'b', 'label':'j_BS', 'exc': True}])
                 data.extend([{'x': MES_Area_data, 'y': j_nbcd.data[t_ind], 'marker':'', 'ls':'-', 'c':'r', 'label':'j_nbcd', 'exc': True}])
-                if (YMIN > np.nanmin(j_BS.data)):
-                    YMIN = np.nanmin(j_BS.data)
-                if (YMIN > np.nanmin(j_nbcd.data)):
-                    YMIN = np.nanmin(j_nbcd.data)
-                if (YMAX < np.nanmax(j_BS.data)):
-                    YMAX = np.nanmax(j_BS.data)
-                if (YMAX < np.nanmax(j_nbcd.data)):
-                    YMAX = np.nanmax(j_nbcd.data)
+                #if (YMIN > np.nanmin(j_BS.data)):
+                #    YMIN = np.nanmin(j_BS.data)
+                #if (YMIN > np.nanmin(j_nbcd.data)):
+                YMIN = np.nanmin(eccurtot.data+j_nbcd.data + j_BS.data)
+                #if (YMAX < np.nanmax(j_BS.data)):
+                #    YMAX = np.nanmax(j_BS.data)
+                #if (YMAX < np.nanmax(j_nbcd.data)):
+                YMAX = np.nanmax(eccurtot.data+j_nbcd.data + j_BS.data)
+                if YMIN < -1.5e6: YMIN = -1.5e6
+                if YMAX > 1.5e6: YMAX = 1.5e6
+                #print YMIN, YMAX
+                #embed()
                 XMIN = 0
                 XMAX = 1.2
             elif name == 'cde_te':
@@ -470,20 +474,29 @@ class ShotfileBackend(Backend):
 
             elif name == 'pol':
                 data = [{'x':t,'c':'k'}]
-                Mesarray = np.array([])
-                Fitarray = np.array([])
-                Tracearray = np.array([])
-                for i in range(MES.data.shape[0]):
-                    Mes = MES.data[i][1]
-                    Fit = FIT.data[i][1]
-                    Trace = (MES.data[i][1]-FIT.data[i][1])/UNC.data[i][1]
-                    Mesarray = np.append(Mesarray,[Mes])
-                    Fitarray = np.append(Fitarray,[Fit])
-                    Tracearray = np.append(Tracearray, [Trace])
-                    
-                data.append({'x':MES.time, 'y':Mesarray, 'ls':'-', 'c':'k', 'exc':True})
-                data.append({'x':MES.time, 'y':Fitarray, 'label': 'fit', 'ls':'-', 'c':'r', 'exc':True})
-                data.append({'x':MES.time, 'y':Tracearray, 'label': 'res', 'ls':'-', 'c':'green', 'exc':True})
+                #Mesarray = np.array([])
+                #Fitarray = np.array([])
+                #Tracearray = np.array([])
+                #print 'pol', MES.data.shape
+                #for i in range(MES.data.shape[0]):
+                #    Mes = MES.data[i][1]
+                #    Fit = FIT.data[i][1]
+                #    Trace = (MES.data[i][1]-FIT.data[i][1])/UNC.data[i][1]
+                #    Mesarray = np.append(Mesarray,[Mes])
+                #    Fitarray = np.append(Fitarray,[Fit])
+                #    Tracearray = np.append(Tracearray, [Trace])
+                chans = [0,1]
+                Mesarray = MES.data[:, chans]
+                Fitarray = FIT.data[:, chans]
+                Tracearray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
+                
+                for i in range(len(chans)):                
+                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'-', 'c':'k', 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':'r', 'exc':True})
+                    data.append({'x':MES.time, 'y':Tracearray[:, i], 'ls':'-', 'c':'green', 'exc':True})
+                    if i == 0:
+                        data[-1]['label'] = 'res'
+                        data[-2]['label'] = 'fit'
                     
                 return PlotBunch(kind='trace',data=data)
 
