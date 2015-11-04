@@ -364,14 +364,19 @@ class ShotfileBackend(Backend):
                 data.extend([{'x':Area_base, 'y':Datan_i, 'marker':'', 'ls':'-', 'c':'b', 'label':'n_i', 'exc': True}])
                 XMAX = n_e.area.data.max() if (n_e.area.data.max() < 1000) else 1
                 XMIN = n_e.area.data.min() if (n_e.area.data.min() > -1000) else 0
-                if YMIN > np.nanmin(n_e.data):
-                    YMIN = np.nanmin(n_e.data)
-                if YMIN > np.nanmin(n_i.data):
-                    YMIN = np.nanmin(n_i.data)
-                if YMAX < np.nanmax(n_e.data):
-                    YMAX = np.nanmax(n_e.data)
-                if YMAX < np.nanmax(n_i.data):
-                    YMAX = np.nanmax(n_i.data)
+                YMIN = 0
+                ned = np.ravel(n_e.data)
+                nid = np.ravel(n_i.data)
+                YMAX = max(ned[np.isfinite(ned)][ned[np.isfinite(ned)].argsort()][-1],
+                           nid[np.isfinite(nid)][nid[np.isfinite(nid)].argsort()][-1])
+                #if YMIN > np.nanmin(n_e.data):
+                #    YMIN = np.nanmin(n_e.data)
+                #if YMIN > np.nanmin(n_i.data):
+                #    YMIN = np.nanmin(n_i.data)
+                #if YMAX < np.nanmax(n_e.data):
+                #    YMAX = np.nanmax(n_e.data)
+                #if YMAX < np.nanmax(n_i.data):
+                #    YMAX = np.nanmax(n_i.data)
 
             elif name == 'cde_zeff':
                 YMIN = 0
