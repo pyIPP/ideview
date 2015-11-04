@@ -33,6 +33,8 @@ except ImportError, e:
 
 zoomed_axes = [None]
 
+other_axes = [None]
+
 def fconf_on_click(event):
     """
     Enlarge or restore the selected axis.
@@ -45,12 +47,8 @@ def fconf_on_click(event):
         # occurs when a region not in an axis is clicked...
         return
 
-    # we want to allow other navigation modes as well. Only act in case
-    # shift was pressed and the correct mouse button was used
-    if event.button != 2: # 2 middle mouse, 3 right mouse # event.key != 'shift' or event.button != 1:
+    if event.button != 2: # 2 middle mouse, 3 right mouse 
         return
-
-    print zoomed_axes[0]
 
     if zoomed_axes[0] is None:
         # not zoomed so far. Perform zoom
@@ -60,9 +58,13 @@ def fconf_on_click(event):
         ax.set_position([0.1, 0.1, 0.85, 0.85])
 
         # hide all the other axes...
+        noa = []
         for axis in event.canvas.figure.axes:
             if axis is not ax:
+                noa.append([axis, axis.get_position()])
+                axis.set_position([0,0,0.01,0.01])
                 axis.set_visible(False)
+        other_axes[0] = noa
 
     else:
         # restore the original state
@@ -71,45 +73,18 @@ def fconf_on_click(event):
         zoomed_axes[0] = None
 
         # make other axes visible again
-        for axis in event.canvas.figure.axes:
+        for axis, pos in other_axes[0]: # event.canvas.figure.axes:
             axis.set_visible(True)
+            axis.set_position(pos)
+
+        other_axes[0] = None
 
     # redraw to make changes visible.
     event.canvas.draw()
 
     return 
     # until here from https://www.semipol.de/2015/09/04/matplotlib-interactively-zooming-to-a-subplot.html
-    # rest: old
-    # remaining problems: home button? wrong coords in lower right during zoom??
-
-    ax = event.inaxes
-    full_screen_pos = (0.1, 0.1, 0.85, 0.85)
-    if ax is None:
-        # Occurs when a region not in an axis is clicked...
-        return
-    if event.button is 2: # 2 middle mouse, 3 right mouse
-        # On left click, zoom the selected axes
-        if not (np.abs(np.array(full_screen_pos) - np.array(ax.get_position().bounds))).sum() <= 0.01:
-            ax._orig_position = ax.get_position()
-            ax.set_position([0.1, 0.1, 0.85, 0.85])
-            for axis in event.canvas.figure.axes:
-            # Hide all the other axes...
-                if axis is not ax:
-                    axis.set_visible(False)
-    #elif event.button is 3:
-        # On right click, restore the axes
-        else:
-            try:
-                ax.set_position(ax._orig_position)
-                for axis in event.canvas.figure.axes:
-                    axis.set_visible(True)
-            except AttributeError:
-            ## If we haven't zoomed, ignore...
-                pass
-    else:
-        # No need to re-draw the canvas if it's not a left or right click
-        return
-    event.canvas.draw()
+    # remaining problems: home button? 
 
 import Tkinter as tk
 import ttk
