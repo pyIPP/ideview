@@ -30,56 +30,11 @@ except ImportError, e:
     print 'Did you do "module load python27/basic"?'
     sys.exit()
 
-
-zoomed_axes = [None]
-
 def fconf_on_click(event):
     """
     Enlarge or restore the selected axis.
     Usage: figure.canvas.mpl_connect('button_press_event', fconf.on_click)
     """
-
-    ax = event.inaxes
-
-    if ax is None:
-        # occurs when a region not in an axis is clicked...
-        return
-
-    # we want to allow other navigation modes as well. Only act in case
-    # shift was pressed and the correct mouse button was used
-    if event.button != 2: # 2 middle mouse, 3 right mouse # event.key != 'shift' or event.button != 1:
-        return
-
-    if zoomed_axes[0] is None:
-        # not zoomed so far. Perform zoom
-
-        # store the original position of the axes
-        zoomed_axes[0] = (ax, ax.get_position())
-        ax.set_position([0.1, 0.1, 0.85, 0.85])
-
-        # hide all the other axes...
-        for axis in event.canvas.figure.axes:
-            if axis is not ax:
-                axis.set_visible(False)
-
-    else:
-        # restore the original state
-
-        zoomed_axes[0][0].set_position(zoomed_axes[0][1])
-        zoomed_axes[0] = None
-
-        # make other axes visible again
-        for axis in event.canvas.figure.axes:
-            axis.set_visible(True)
-
-    # redraw to make changes visible.
-    event.canvas.draw()
-
-    return 
-    # until here from https://www.semipol.de/2015/09/04/matplotlib-interactively-zooming-to-a-subplot.html
-    # rest: old
-    # remaining problems: home button? wrong coords in lower right during zoom??
-
     ax = event.inaxes
     full_screen_pos = (0.1, 0.1, 0.85, 0.85)
     if ax is None:

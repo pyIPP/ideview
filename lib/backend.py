@@ -417,7 +417,7 @@ class ShotfileBackend(Backend):
     def tracedata(self, name, t, ecrh = None):
         try:
             MES, FIT, UNC = self.lookfordata(name)
-            if not 'signalGroup' in str(type(MES)):
+            if not 'signalGroup' in str(type(MES)): # SIGNALS in here
                 if 'q' in name and name != 'shear_q1':
                     qlist = ['q0', 'q25', 'q50', 'q75', 'q95']
                     if name in qlist:
@@ -432,9 +432,16 @@ class ShotfileBackend(Backend):
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
+                elif name == 'betpol':
+                    data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
+                    if UNC is not None:
+                        data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
+                                     {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
+                    return PlotBunch(kind='trace',data=data, 
+                        setting={'ylim':(0,min(3, max(MES.data+UNC.data)))})
                 else:
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
-                    if not UNC is  None:
+                    if UNC is not None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
                     return PlotBunch(kind='trace',data=data)
@@ -504,7 +511,6 @@ class ShotfileBackend(Backend):
                         data[-2]['label'] = 'fit'
                     
                 return PlotBunch(kind='trace',data=data)
-
             else:
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
                 points = MES.data.shape[-1]
