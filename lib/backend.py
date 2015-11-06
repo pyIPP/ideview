@@ -84,6 +84,7 @@ class ShotfileBackend(Backend):
                    'profile-Itps_av',
                    'profile-Itfs',
                    'profile-Itfs_av',
+                   'profile-It_av',
                    'profile-pol',
                    'profile-mse',
                    'profile-I_torcon',
@@ -266,7 +267,7 @@ class ShotfileBackend(Backend):
                     data.extend([{'x': qsap.area.data[t_ind], 'y': np.abs(qsap.data)[t_ind], 'ls': '--'},
                                 {'x': qsam.area.data[t_ind], 'y': np.abs(qsam.data)[t_ind], 'ls': '--'}])
 
-            if name == 'eccurgyr':
+            elif name == 'eccurgyr':
                 data = []
                 colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
                 MES.area = self.getData('eccd_rp')
@@ -328,7 +329,7 @@ class ShotfileBackend(Backend):
                 #print YMIN, YMAX
                 #embed()
                 XMIN = 0
-                XMAX = 1.2
+                XMAX = 1.
             elif name == 'cde_te':
                 data = []
                 YMAX = 10e3
@@ -386,6 +387,20 @@ class ShotfileBackend(Backend):
             elif name == 'ncft':
                 YMIN = 0
                 YMAX = 1
+            elif name == 'It_av':
+                Itav = self.getData('It_av')
+                rhopItav = self.getData('rhop_It')
+                Itavunc = self.getData('It_av_un')
+                startprof = np.where(rhopItav.data[t_ind] < 1)[0][0]
+                midprof = rhopItav.data[t_ind].argmin()#+1
+                data = [
+                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'}, 
+                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data+Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
+                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data-Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
+                ]
+                XMIN, XMAX = 0, 1
+                YMIN, YMAX = 0, Itav.data.max()
+                #embed()
 
             return PlotBunch(data=data, setting={'xlim': (XMIN,XMAX), 'ylim':(YMIN,YMAX)})
 
@@ -432,7 +447,7 @@ class ShotfileBackend(Backend):
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
-                elif name == 'betpol':
+                elif name == 'betpol' or name == 'li':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
                     if UNC is not None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
@@ -851,6 +866,9 @@ class ShotfileBackend(Backend):
 
             elif name == 'profile-Itfs_av':
                 return self.profiledata('Itfs_av', t, t_ind)
+                
+            elif name == 'profile-It_av':
+                return self.profiledata('It_av', t, t_ind)
 
             elif name == 'profile-T_e+T_i':
                 return self.profiledata('cde_te', t, t_ind)
