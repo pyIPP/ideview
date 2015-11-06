@@ -387,10 +387,10 @@ class ShotfileBackend(Backend):
             elif name == 'ncft':
                 YMIN = 0
                 YMAX = 1
-            elif name == 'It_av':
-                Itav = self.getData('It_av')
+            elif name in ('It_av', 'Itps_av', 'Itfs_av'):
+                Itav = self.getData(name)
                 rhopItav = self.getData('rhop_It')
-                Itavunc = self.getData('It_av_un')
+                Itavunc = self.getData(name+'_un' if name == 'It_av' else name+'u')
                 startprof = np.where(rhopItav.data[t_ind] < 1)[0][0]
                 midprof = rhopItav.data[t_ind].argmin()#+1
                 data = [
