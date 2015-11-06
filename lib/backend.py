@@ -391,15 +391,15 @@ class ShotfileBackend(Backend):
                 Itav = self.getData(name)
                 rhopItav = self.getData('rhop_It')
                 Itavunc = self.getData(name+'_un' if name == 'It_av' else name+'u')
-                startprof = np.where(rhopItav.data[t_ind] < 1)[0][0]
-                midprof = rhopItav.data[t_ind].argmin()#+1
+                startprof = 0 #np.where(rhopItav.data[t_ind] < 1)[0][0]
+                midprof = rhopItav.data[t_ind].argmin()+1
                 data = [
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'}, 
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data+Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data-Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
                 ]
                 XMIN, XMAX = 0, 1
-                YMIN, YMAX = 0, Itav.data.max()
+                YMIN, YMAX = Itav.data.min(), Itav.data.max()
                 #embed()
 
             return PlotBunch(data=data, setting={'xlim': (XMIN,XMAX), 'ylim':(YMIN,YMAX)})
