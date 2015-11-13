@@ -512,18 +512,20 @@ class ShotfileBackend(Backend):
                 #    Mesarray = np.append(Mesarray,[Mes])
                 #    Fitarray = np.append(Fitarray,[Fit])
                 #    Tracearray = np.append(Tracearray, [Trace])
-                chans = [0,1]
+                chans = [0,1,2,3,4]
                 Mesarray = MES.data[:, chans]
                 Fitarray = FIT.data[:, chans]
-                Tracearray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
+                Resarray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
                 
+                colors = ['k', 'r', 'navy', 'purple', 'darkgreen']
                 for i in range(len(chans)):                
-                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'-', 'c':'k', 'exc':True})
-                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':'r', 'exc':True})
-                    data.append({'x':MES.time, 'y':Tracearray[:, i], 'ls':'-', 'c':'green', 'exc':True})
+                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'--', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'-.', 'c':colors[i], 'exc':True})
                     if i == 0:
                         data[-1]['label'] = 'res'
                         data[-2]['label'] = 'fit'
+                        #data[-3]['label'] = 'mes'
                     
                 return PlotBunch(kind='trace',data=data)
             else:
