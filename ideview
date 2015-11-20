@@ -237,8 +237,8 @@ class View(tk.Tk):
         button_forward = tk.Button(self.topframe, text=">", command=self.onNextButtonClick)
         button_forward.pack(side=tk.LEFT)
 
-        button_record = tk.Button(self.topframe, text="REC", command = self.onRecButtonClick)
-        button_record.pack(side=tk.LEFT)
+        #button_record = tk.Button(self.topframe, text="REC", command = self.onRecButtonClick)
+        #button_record.pack(side=tk.LEFT)
 
         self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0)
         self.timeslider.bind("<ButtonRelease-1>", self.scaleUpdated)

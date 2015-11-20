@@ -84,7 +84,6 @@ class ShotfileBackend(Backend):
                    'profile-Itps_av',
                    'profile-Itfs',
                    'profile-Itfs_av',
-                   'profile-It_av',
                    'profile-pol',
                    'profile-mse',
                    'profile-I_torcon',
@@ -211,7 +210,7 @@ class ShotfileBackend(Backend):
             else:
                 return MES, FIT, UNC
         except Exception as e:
-            print e, '\n Something went wrong while looking for the data'
+            print e, '\nSomething went wrong while looking for the data'
             pass
 
     def profiledata(self, name, t, t_ind, unc=True, fit=True):
@@ -267,7 +266,7 @@ class ShotfileBackend(Backend):
                     data.extend([{'x': qsap.area.data[t_ind], 'y': np.abs(qsap.data)[t_ind], 'ls': '--'},
                                 {'x': qsam.area.data[t_ind], 'y': np.abs(qsam.data)[t_ind], 'ls': '--'}])
 
-            elif name == 'eccurgyr':
+            if name == 'eccurgyr':
                 data = []
                 colours = ['r','b', 'g', 'brown', 'cyan', 'magenta', 'purple', 'orange']
                 MES.area = self.getData('eccd_rp')
@@ -308,6 +307,7 @@ class ShotfileBackend(Backend):
                 #                 {'x': Valx, 'y': Valy- Unc, 'ls': '--'}])
                 #XMIN = 0
                 #XMAX = 1.2
+
             elif name == 'eccurtot':
                 data = []
                 eccurtot = self.getData('eccurtot')
@@ -329,10 +329,11 @@ class ShotfileBackend(Backend):
                 #print YMIN, YMAX
                 #embed()
                 XMIN = 0
-                XMAX = 1.
+                XMAX = 1.2
+
             elif name == 'cde_te':
                 data = []
-                YMAX = 10e3
+                YMAX = 0
                 YMIN = 0
                 T_e = self.getData('cde_te')
                 T_i = self.getData('cde_ti')
@@ -343,14 +344,16 @@ class ShotfileBackend(Backend):
                 data.extend([{'x':Area_base, 'y':DataT_i, 'marker':'', 'ls':'-', 'c':'b', 'label':'T_i', 'exc': True}])
                 XMAX = T_e.area.data.max() if (T_e.area.data.max() < 1000) else 1
                 XMIN = T_e.area.data.min() if (T_e.area.data.min() > -1000) else 0
-                #if YMIN > np.nanmin(T_e.data):
-                #    YMIN = np.nanmin(T_e.data)
-                #if YMIN > np.nanmin(T_i.data):
-                #    YMIN = np.nanmin(T_i.data)
-                #if YMAX < np.nanmax(T_e.data):
-                #    YMAX = np.nanmax(T_e.data)
-                #if YMAX < np.nanmax(T_i.data):
-                #    YMAX = np.nanmax(T_i.data)
+                Ted = np.ravel(T_e.data)
+                Tid = np.ravel(T_i.data)
+                Tedsorted = list(Ted[np.isfinite(Ted)][Ted[np.isfinite(Ted)].argsort()])
+                Tidsorted = list(Tid[np.isfinite(Tid)][Tid[np.isfinite(Tid)].argsort()])
+                while Tedsorted[-1] > 1e5:
+                    del Tedsorted [-1]
+                while Tidsorted[-1] > 1e5: # avoiding of broken values that are not inf or NaN
+                    del Tidsorted [-1]
+                YMIN = 0
+                YMAX = max(Tedsorted[-1], Tidsorted[-1])
 
             elif name == 'cde_ne':
                 data = []
@@ -365,19 +368,15 @@ class ShotfileBackend(Backend):
                 data.extend([{'x':Area_base, 'y':Datan_i, 'marker':'', 'ls':'-', 'c':'b', 'label':'n_i', 'exc': True}])
                 XMAX = n_e.area.data.max() if (n_e.area.data.max() < 1000) else 1
                 XMIN = n_e.area.data.min() if (n_e.area.data.min() > -1000) else 0
+                #if YMAX < np.nanmax(n_e.data):
+                #    YMAX = np.nanmax(n_e.data)
+                #if YMAX < np.nanmax(n_i.data):
+                #    YMAX = np.nanmax(n_i.data)
                 YMIN = 0
                 ned = np.ravel(n_e.data)
                 nid = np.ravel(n_i.data)
                 YMAX = max(ned[np.isfinite(ned)][ned[np.isfinite(ned)].argsort()][-1],
                            nid[np.isfinite(nid)][nid[np.isfinite(nid)].argsort()][-1])
-                #if YMIN > np.nanmin(n_e.data):
-                #    YMIN = np.nanmin(n_e.data)
-                #if YMIN > np.nanmin(n_i.data):
-                #    YMIN = np.nanmin(n_i.data)
-                #if YMAX < np.nanmax(n_e.data):
-                #    YMAX = np.nanmax(n_e.data)
-                #if YMAX < np.nanmax(n_i.data):
-                #    YMAX = np.nanmax(n_i.data)
 
             elif name == 'cde_zeff':
                 YMIN = 0
@@ -387,20 +386,11 @@ class ShotfileBackend(Backend):
             elif name == 'ncft':
                 YMIN = 0
                 YMAX = 1
-            elif name in ('It_av', 'Itps_av', 'Itfs_av'):
-                Itav = self.getData(name)
-                rhopItav = self.getData('rhop_It')
-                Itavunc = self.getData(name+'_un' if name == 'It_av' else name+'u')
-                startprof = 0 #np.where(rhopItav.data[t_ind] < 1)[0][0]
-                midprof = rhopItav.data[t_ind].argmin()+1
-                data = [
-                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'}, 
-                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data+Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
-                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data-Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
-                ]
-                XMIN, XMAX = 0, 1
-                YMIN, YMAX = Itav.data.min(), Itav.data.max()
-                #embed()
+                
+            elif name == 'sig_snc':
+                YMIN = 0
+                a = np.ravel(MES.data)
+                YMAX = a[np.isfinite(a)][a[np.isfinite(a)].argsort()][-1]
 
             return PlotBunch(data=data, setting={'xlim': (XMIN,XMAX), 'ylim':(YMIN,YMAX)})
 
@@ -447,7 +437,7 @@ class ShotfileBackend(Backend):
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
-                elif name == 'betpol' or name == 'li':
+                elif name == 'betpol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
                     if UNC is not None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
@@ -512,20 +502,18 @@ class ShotfileBackend(Backend):
                 #    Mesarray = np.append(Mesarray,[Mes])
                 #    Fitarray = np.append(Fitarray,[Fit])
                 #    Tracearray = np.append(Tracearray, [Trace])
-                chans = [0,1,2,3,4]
+                chans = [0,1]
                 Mesarray = MES.data[:, chans]
                 Fitarray = FIT.data[:, chans]
-                Resarray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
+                Tracearray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
                 
-                colors = ['k', 'r', 'navy', 'purple', 'darkgreen']
                 for i in range(len(chans)):                
-                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'--', 'c':colors[i], 'exc':True})
-                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
-                    data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'-.', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'-', 'c':'k', 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':'r', 'exc':True})
+                    data.append({'x':MES.time, 'y':Tracearray[:, i], 'ls':'-', 'c':'green', 'exc':True})
                     if i == 0:
                         data[-1]['label'] = 'res'
                         data[-2]['label'] = 'fit'
-                        #data[-3]['label'] = 'mes'
                     
                 return PlotBunch(kind='trace',data=data)
             else:
@@ -813,7 +801,7 @@ class ShotfileBackend(Backend):
                 punc = self.getData('pres_unc',t)
                 pcon = self.getData('pcon_mes')
                 pcon = pcon(tBegin=t, tEnd=t)
-                maxpres = self.getData('Pres').data.max()
+                maxpres = np.nanmax(p.data)
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
                 
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},
@@ -868,9 +856,6 @@ class ShotfileBackend(Backend):
 
             elif name == 'profile-Itfs_av':
                 return self.profiledata('Itfs_av', t, t_ind)
-                
-            elif name == 'profile-It_av':
-                return self.profiledata('It_av', t, t_ind)
 
             elif name == 'profile-T_e+T_i':
                 return self.profiledata('cde_te', t, t_ind)
