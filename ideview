@@ -456,21 +456,11 @@ class View(tk.Tk):
         if not self.timeslider.get()-1 < 0:
             self.timeslider.set(self.timeslider.get()-1)
             self.updatePlots()
-        '''res = self.timeslider.config()['resolution'][-1]
-        from_ = self.timeslider.config()['from'][-1]
-        if not self.timeslider.get() - res < from_:
-            self.timeslider.set(self.timeslider.get()-res)
-            self.updatePlots()'''
 
     def onNextButtonClick(self):
         if not self.timeslider.get()+1 > self.timeslider.config()['to'][-1]:
             self.timeslider.set(self.timeslider.get()+1)
             self.updatePlots()
-        '''res = self.timeslider.config()['resolution'][-1]
-        to = self.timeslider.config()['to'][-1]
-        if not self.timeslider.get() + res > to:
-            self.timeslider.set(self.timeslider.get()+res)
-            self.updatePlots()'''
 
     def onPlayButtonClick(self, event=None):
         btn = self.playButton
@@ -529,13 +519,6 @@ class View(tk.Tk):
             self.timeslider.set(self.timeslider.get() + 1)
             self.updatePlots()
             self._job = self.after(10, self.playLoop)
-            '''res = self.timeslider.config()['resolution'][-1]
-        to = self.timeslider.config()['to'][-1]
-        from_ = self.timeslider.config()['from'][-1]
-        if self.timeslider.get() + res < to:
-            self.timeslider.set(self.timeslider.get() + res)
-            self.updatePlots()
-            self._job = self.after(10, self.playLoop)'''
         else:
             self.playButton.configure(text=self.playString)
             self.playing = False            
@@ -552,10 +535,6 @@ class View(tk.Tk):
     def MouseWheelInteraction(self,event):
         to = self.timeslider.config()['to'][-1]
         time = max(0, min(to,self.timeslider.get()+event.step))
-        '''res = self.timeslider.config()['resolution'][-1]
-        to = self.timeslider.config()['to'][-1]
-        from_ = self.timeslider.config()['from'][-1]
-        time = max(from_ ,min(to,self.timeslider.get()+res*event.step))'''
         self.timeslider.set(time)
         print self.timeslider.get()
         self.updatePlots()
