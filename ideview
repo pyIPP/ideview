@@ -239,8 +239,13 @@ class View(tk.Tk):
 
         #button_record = tk.Button(self.topframe, text="REC", command = self.onRecButtonClick)
         #button_record.pack(side=tk.LEFT)
+        
+        setattr(self, 'entryTime', tk.Entry(self.topframe, width=4))
+        self.entryTime = getattr(self,'entryTime')
+        self.entryTime.pack(side=tk.LEFT)
+        self.entryTime.bind('<Return>', self.userTime)
 
-        self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0)
+        self.timeslider = tk.Scale(self.topframe, orient="horizontal", from_=0, to=0, resolution=0, showvalue=0, command=self.scrollTime)
         self.timeslider.bind("<ButtonRelease-1>", self.scaleUpdated)
         self.timeslider.pack(side=tk.LEFT, fill=tk.X, expand=1)
 
@@ -250,7 +255,7 @@ class View(tk.Tk):
         self.canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
         self.bind('<Control-q>', self.Quit)
         self.bind('<space>', self.onPlayButtonClick)
-        self.bind('<Return>', self.onLoadButtonClick)
+        self.bind('<Control-l>', self.onLoadButtonClick)
 
         toolbar = NavigationToolbar2TkAgg(self.canvas, self)
         toolbar.update()
@@ -273,6 +278,23 @@ class View(tk.Tk):
         createToolTip(self.playButton,'Play,Stop, also controlled by mouse middle button and <space>')
         createToolTip(button_forward,'Go forward by one timestep, (also left mouse button)')
 
+    def scrollTime(self, event):
+        if self.loaded:
+            self.entryTime.delete(0,tk.END)
+            self.entryTime.insert(0,'%4.2f'%self.backend.getAvailableTimes()[self.timeslider.get()])
+    
+    def userTime(self, event):
+        t = self.entryTime.get()
+        tmp = list(self.backend.getAvailableTimes())
+        min_ = min(max(tmp), t)
+        if t not in tmp:
+            for i, x in enumerate(tmp):
+                if abs(float(t)-float(x)) < min_:
+                    min_ = abs(float(t)-float(x))
+                    min_ind = i
+            t = tmp[min_ind]
+        self.timeslider.set(tmp.index(t))
+        self.updatePlots()
     
     def Selection(self):
 
@@ -431,18 +453,24 @@ class View(tk.Tk):
     playing = False
 
     def onPrevButtonClick(self):
-        res = self.timeslider.config()['resolution'][-1]
+        if not self.timeslider.get()-1 < 0:
+            self.timeslider.set(self.timeslider.get()-1)
+            self.updatePlots()
+        '''res = self.timeslider.config()['resolution'][-1]
         from_ = self.timeslider.config()['from'][-1]
         if not self.timeslider.get() - res < from_:
             self.timeslider.set(self.timeslider.get()-res)
-            self.updatePlots()
+            self.updatePlots()'''
 
     def onNextButtonClick(self):
-        res = self.timeslider.config()['resolution'][-1]
+        if not self.timeslider.get()+1 > self.timeslider.config()['to'][-1]:
+            self.timeslider.set(self.timeslider.get()+1)
+            self.updatePlots()
+        '''res = self.timeslider.config()['resolution'][-1]
         to = self.timeslider.config()['to'][-1]
         if not self.timeslider.get() + res > to:
             self.timeslider.set(self.timeslider.get()+res)
-            self.updatePlots()
+            self.updatePlots()'''
 
     def onPlayButtonClick(self, event=None):
         btn = self.playButton
@@ -497,13 +525,17 @@ class View(tk.Tk):
         if not self.playing:
             self._job = None
             return
-        res = self.timeslider.config()['resolution'][-1]
+        if self.timeslider.get() + 1 < self.timeslider.config()['to'][-1]:
+            self.timeslider.set(self.timeslider.get() + 1)
+            self.updatePlots()
+            self._job = self.after(10, self.playLoop)
+            '''res = self.timeslider.config()['resolution'][-1]
         to = self.timeslider.config()['to'][-1]
         from_ = self.timeslider.config()['from'][-1]
         if self.timeslider.get() + res < to:
             self.timeslider.set(self.timeslider.get() + res)
             self.updatePlots()
-            self._job = self.after(10, self.playLoop)
+            self._job = self.after(10, self.playLoop)'''
         else:
             self.playButton.configure(text=self.playString)
             self.playing = False            
@@ -518,11 +550,14 @@ class View(tk.Tk):
                   self.entryShot.get(), self.entryEd.get())
 
     def MouseWheelInteraction(self,event):
-        res = self.timeslider.config()['resolution'][-1]
+        to = self.timeslider.config()['to'][-1]
+        time = max(0, min(to,self.timeslider.get()+event.step))
+        '''res = self.timeslider.config()['resolution'][-1]
         to = self.timeslider.config()['to'][-1]
         from_ = self.timeslider.config()['from'][-1]
-        time = max(from_ ,min(to,self.timeslider.get()+res*event.step))
+        time = max(from_ ,min(to,self.timeslider.get()+res*event.step))'''
         self.timeslider.set(time)
+        print self.timeslider.get()
         self.updatePlots()
 
     structures = []
@@ -538,9 +573,12 @@ class View(tk.Tk):
         self.status('Loading %s %s #%s.%s'%(diag,exp,shot,edition))
         self.backend = ShotfileBackend(diag,exp, int(shot), int(edition))
         t = self.backend.getAvailableTimes()
-        self.timeslider.configure(from_=t.min(), to=t.max(), resolution=(t[-1]-t[0])/len(t))
+        self.timeslider.configure(from_=0, to=len(t)-1, resolution=1)
+        #self.timeslider.configure(from_=t.min(), to=t.max(), resolution=(t[-1]-t[0])/len(t))
         # EXAMPLE: 3 tickintervals: self.timeslider.configure(tickinterval=(t[-1]-t[0])/3)
-        self.timeslider.set(t.min())
+        self.timeslider.set(0)
+        self.entryTime.insert(0,'%4.2f'%t[0])
+        #self.timeslider.set(t.min())
 
         eq = kk.kk()
         eq.Open(int(shot), 'AUGD', 'YGC')
@@ -616,7 +654,11 @@ class View(tk.Tk):
         if self.__firstplot:  
             self._linecache = {}
 
-        t = float(self.timeslider.get())
+        t_ind = int(self.timeslider.get())
+        t = self.backend.getAvailableTimes()[t_ind]
+        self.entryTime.delete(0,tk.END)
+        self.entryTime.insert(0,'%4.2f'%t)
+        #t = float(self.timeslider.get())
         plots = self.backend.getPlotsForTimePoint(self.settings.selectedPlots, t)
 
         for i, key in enumerate(self.axes):
@@ -858,8 +900,21 @@ class View(tk.Tk):
         self.canvas.draw()
 
     
-    def scaleUpdated(self, event):
+    def scaleUpdated(self, event=None):
         self.updatePlots()
+        '''if self.timeslider.get() in self.backend.getAvailableTimes():
+            self.updatePlots()
+        else:
+            res = self.timeslider.config()['resolution'][-1]
+            to = self.timeslider.config()['to'][-1]
+            if not self.timeslider.get() + res > to:
+                self.timeslider.set(self.timeslider.get()+res)
+            self.scaleUpdated()
+        i = 0.1
+        while i < 4.61:
+            if not i in self.backend.getAvailableTimes():
+                print i
+            i += 0.02'''
 
 if __name__ == "__main__":
     app = View(None)
