@@ -529,16 +529,14 @@ class ShotfileBackend(Backend):
                 hasmes = chans[np.average(Mesarray, axis=0) > 0.01]
                 colors = ['k', 'darkred', 'navy', 'purple', 'darkgreen']
                 colors2 = ['gray', 'red', 'blue', 'pink', 'green']
-                #embed()
                 labeled = False
-                for i in chans:                
-                    data.append({'x':MES.time, 'y':Mesarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
-                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors2[i], 'exc':True})
-                    data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'--', 'c':colors2[i], 'exc':True})
+                for i in chans:
+                    if i in hasmes:
+                        data.append({'x':MES.time, 'y':Mesarray[:, i], 'marker':'o', 'ls':'', 'c':colors[i], 'exc':True})
+                        data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'--', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
                     if i not in hasmes:
                         data[-1]['alpha'] = 0.2
-                        data[-2]['alpha'] = 0.2
-                        data[-3]['alpha'] = 0.2
                     elif not labeled:
                         data[-1]['label'] = 'res'
                         data[-2]['label'] = 'fit'
