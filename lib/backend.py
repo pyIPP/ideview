@@ -311,25 +311,23 @@ class ShotfileBackend(Backend):
                 #XMAX = 1.2
             elif name == 'eccurtot':
                 data = []
+                cdebase = self.getData('cde_rp')
                 eccurtot = self.getData('eccurtot')
                 j_BS = self.getData('cde_bs')
                 j_nbcd = self.getData('cde_nbcd')
                 data.extend([{'x' : MES_Area_data, 'y': eccurtot.data[t_ind], 'marker':'', 'ls':'-', 'c':'k', 'label':'ECcur_tot', 'exc': True}])
-                data.extend([{'x' : MES_Area_data, 'y': j_BS.data[t_ind], 'marker':'', 'ls':'-', 'c':'b', 'label':'j_BS', 'exc': True}])
-                data.extend([{'x': MES_Area_data, 'y': j_nbcd.data[t_ind], 'marker':'', 'ls':'-', 'c':'r', 'label':'j_nbcd', 'exc': True}])
-                data.extend([{'x': MES_Area_data, 'y': j_nbcd.data[t_ind]+j_BS.data[t_ind]+eccurtot.data[t_ind], 'marker':'', 'ls':'--', 'c':'k', 'exc': True}])
-                #if (YMIN > np.nanmin(j_BS.data)):
-                #    YMIN = np.nanmin(j_BS.data)
-                #if (YMIN > np.nanmin(j_nbcd.data)):
+                data.extend([{'x' : cdebase.data[t_ind], 'y': j_BS.data[t_ind], 'marker':'', 'ls':'-', 'c':'b', 'label':'j_BS', 'exc': True}])
+                data.extend([{'x' : cdebase.data[t_ind], 'y': j_nbcd.data[t_ind], 'marker':'', 'ls':'-', 'c':'r', 'label':'j_nbcd', 'exc': True}])
+                # interpolation necessary because of different area bases
+                xvals = np.linspace(0,1,len(MES_Area_data))
+                interp1 = np.interp(xvals, MES_Area_data, eccurtot.data[t_ind])
+                interp2 = np.interp(xvals, cdebase.data[t_ind], j_BS.data[t_ind])
+                interp3 = np.interp(xvals, cdebase.data[t_ind], j_nbcd.data[t_ind])
+                data.extend([{'x': xvals, 'y': interp1+interp2+interp3, 'marker':'', 'ls':'--', 'c':'k', 'exc': True}])
                 YMIN = np.nanmin(eccurtot.data+j_nbcd.data + j_BS.data)
-                #if (YMAX < np.nanmax(j_BS.data)):
-                #    YMAX = np.nanmax(j_BS.data)
-                #if (YMAX < np.nanmax(j_nbcd.data)):
                 YMAX = np.nanmax(eccurtot.data+j_nbcd.data + j_BS.data)
                 if YMIN < -2e6: YMIN = -2e6
                 if YMAX > 3e6: YMAX = 3e6
-                #print YMIN, YMAX
-                #embed()
                 XMIN = 0
                 XMAX = 1.
             elif name == 'cde_te':
@@ -510,7 +508,7 @@ class ShotfileBackend(Backend):
                 return PlotBunch(kind='trace',data=data)
 
             elif name == 'pol':
-                data = [{'x':t,'c':'k'}]
+                data = [{'x':t,'c':'k', 'label':None}]
                 #Mesarray = np.array([])
                 #Fitarray = np.array([])
                 #Tracearray = np.array([])
