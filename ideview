@@ -546,7 +546,7 @@ class View(tk.Tk):
     def load(self,diag, exp, shot, edition):
 
         self.loaded = False
-        if diag == 'IDF' or 'IDG':
+        if diag in ('IDF', 'IDG'):
             print 'loading IDE instead of %s'%diag
             diag = 'IDE'
         self.status('Loading %s %s #%s.%s'%(diag,exp,shot,edition))
@@ -693,8 +693,11 @@ class View(tk.Tk):
                     else:
                         c = 'b'
                         if not exc: #'normal' profiles and traces
-                            label = key.split('-')[-1] if '-' in key and j==0 else None
-                            tmp, =  ax.plot(x, y, label=label,color=c, **p)
+                            if '-' in key and j==0 and not p.has_key('label'):
+                                label = key.split('-')[-1]
+                                tmp, =  ax.plot(x, y, label=label,color=c, **p)
+                            else:
+                                tmp, =  ax.plot(x, y, color=c, **p)
                         else:       #exceptions like residua
                             tmp, =  ax.plot(x, y, **p)
 
@@ -881,19 +884,6 @@ class View(tk.Tk):
     
     def scaleUpdated(self, event=None):
         self.updatePlots()
-        '''if self.timeslider.get() in self.backend.getAvailableTimes():
-            self.updatePlots()
-        else:
-            res = self.timeslider.config()['resolution'][-1]
-            to = self.timeslider.config()['to'][-1]
-            if not self.timeslider.get() + res > to:
-                self.timeslider.set(self.timeslider.get()+res)
-            self.scaleUpdated()
-        i = 0.1
-        while i < 4.61:
-            if not i in self.backend.getAvailableTimes():
-                print i
-            i += 0.02'''
 
 if __name__ == "__main__":
     app = View(None)
