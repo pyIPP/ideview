@@ -43,7 +43,7 @@ class ShotfileBackend(Backend):
                 self.equ.append(dd.shotfile('IDG', shot, experiment, idg_ed))
                 self.openedEditions['IDG'] = self.equ[-1].edition
         except Exception as e:
-            print 'WARNING! Please use the old edition.'
+            print 'WARNING! Please use the old edition.', e
             self.equ.append(dd.shotfile('IDF', shot, experiment, edition))
             self.openedEditions['IDF'] = self.equ[-1].edition
             self.equ.append(dd.shotfile('IDG', shot, experiment, edition))
@@ -142,7 +142,10 @@ class ShotfileBackend(Backend):
                     'trace-Vol',
                     'trace-pol',
                     'trace-mse',
-                    'trace-Shear_q1']
+                    'trace-Shear_q1',
+                    'trace-diafl',
+                    'trace-tilecur',
+                    'trace-uloop']
 
     __plotNames += ['timecontour-pressure',
                     'timecontour-q',
@@ -180,15 +183,19 @@ class ShotfileBackend(Backend):
             if not onlyMES:
                 if name == 'betpol':
                     UNC = self.getData('betp_unc')
+                elif name == 'tilecur':
+                    MES = self.getData('tilecurm')
+                    UNC = self.getData('tilecuru')
+                    FIT = self.getData('tilecurf')
                 else:
                     unc = '%s_unc' %name
                     UNC = self.getData(unc)
                     if UNC is None:
                         unc = '%sunc' %name
                         UNC = self.getData(unc)
-
-                fit = '%s_fit' %name
-                FIT = self.getData(fit)
+                if FIT is None:
+                    fit = '%s_fit' %name
+                    FIT = self.getData(fit)
                 if FIT is None:
                     fit = '%sfit' %name
                     FIT = self.getData(fit)
@@ -241,6 +248,12 @@ class ShotfileBackend(Backend):
                 FIT_Area_data = FIT.area.data[0 if shape[0]==1 else t_ind]
                 FIT_Data = FIT.data[t_ind]
                 data.extend([{'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-'}])
+                
+            if name == 'pcon':
+                pconfast = self.getData('pconfast')
+                data[0]['label'] = 'pcon'
+                data[-1]['label'] = 'pcon_fit'
+                data.extend([{'x': MES_Area_data, 'y': pconfast.data[t_ind], 'ls':'-', 'c':'b', 'label':'pconfast'}])
 
             if name == 'q_sa':
                 qsa = MES
@@ -452,6 +465,8 @@ class ShotfileBackend(Backend):
                         data=[{'x': MES.time, 'y': q, 'ls': '-'},{'x': t,'c': 'k'},
                               {'x': MES.time, 'y': abs(UNCplus.data), 'ls': '--'}, {'x' : MES.time, 'y': abs(UNCminus.data), 'ls': '--'}]
                         return PlotBunch(kind='trace',data=data, setting={'ylim':(0,10)})
+                        
+                    
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
@@ -463,10 +478,12 @@ class ShotfileBackend(Backend):
                     return PlotBunch(kind='trace',data=data, 
                         setting={'ylim':(0,min(3, max(MES.data+UNC.data)))})
                 else:
-                    data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
-                    if UNC is not None:
+                    data=[{'x': MES.time, 'y': MES.data, 'ls': '-', 'label':'mes'},{'x': t,'c': 'k'}]
+                    if UNC is not None and 10*np.average(MES.data)>np.average(UNC.data):
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
+                    if FIT is not None:
+                        data.extend([{'x': MES.time, 'y': FIT.data, 'ls': '-', 'c':'r','label':'fit'}])
                     return PlotBunch(kind='trace',data=data)
 
 
@@ -542,6 +559,58 @@ class ShotfileBackend(Backend):
                         data[-3]['label'] = 'mes'
                     
                 return PlotBunch(kind='trace',data=data)
+                
+            elif name == 'tilecur':
+                data = [{'x':t,'c':'k', 'label':None}]
+                chans = np.array([0,1])
+                Mesarray = MES.data[:, chans]
+                Fitarray = FIT.data[:, chans]
+                Resarray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
+                hasmes = chans[abs(np.average(Mesarray, axis=0)) > 0.01]
+                colors = ['k', 'darkred']
+                labeled = False
+                for i in chans:
+                    if i in hasmes:
+                        data.append({'x':MES.time, 'y':Mesarray[:, i], 'marker':'o', 'ls':'', 'c':colors[i], 'exc':True})
+                        data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'--', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
+                    if i not in hasmes:
+                        data[-1]['alpha'] = 0.2
+                    elif not labeled:
+                        data[-1]['label'] = 'res'
+                        data[-2]['label'] = 'fit'
+                        labeled = True
+                        data[-3]['label'] = 'mes'
+                    
+                return PlotBunch(kind='trace',data=data)
+                
+            elif name == 'uloop':
+                data = [{'x':t,'c':'k', 'label':None}]
+                chans = np.array([0,1,2])
+                Mesarray = MES.data[:, chans]
+                Fitarray = FIT.data[:, chans]
+                Resarray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
+                hasmes = chans[abs(np.average(Mesarray, axis=0)) > 0.01]
+                colors = ['k', 'darkred', 'navy']
+                labeled = False
+                for i in chans:
+                    if i in hasmes:
+                        data.append({'x':MES.time, 'y':Mesarray[:, i], 'marker':'o', 'ls':'', 'c':colors[i], 'exc':True})
+                        data.append({'x':MES.time, 'y':Resarray[:, i], 'ls':'--', 'c':colors[i], 'exc':True})
+                    data.append({'x':MES.time, 'y':Fitarray[:, i], 'ls':'-', 'c':colors[i], 'exc':True})
+                    if i not in hasmes:
+                        data[-1]['alpha'] = 0.2
+                    elif not labeled:
+                        data[-1]['label'] = 'res'
+                        data[-2]['label'] = 'fit'
+                        labeled = True
+                        data[-3]['label'] = 'mes'
+                    
+                return PlotBunch(kind='trace',data=data)
+                
+                
+                
+                
             else:
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
                 points = MES.data.shape[-1]
@@ -791,6 +860,13 @@ class ShotfileBackend(Backend):
                 return self.tracedata('mse', t)
             elif name == 'trace-Shear_q1':
                 return self.tracedata('shear_q1', t)
+            elif name == 'trace-diafl':
+                return self.tracedata('diafl', t)
+            elif name == 'trace-tilecur':
+                return self.tracedata('tilecur', t)
+            elif name == 'trace-uloop':
+                return self.tracedata('uloop', t)
+                
 
         elif 'profile' in name:
             if name == 'profile-q':
@@ -827,7 +903,7 @@ class ShotfileBackend(Backend):
                 punc = self.getData('pres_unc',t)
                 pcon = self.getData('pcon_mes')
                 pcon = pcon(tBegin=t, tEnd=t)
-                maxpres = np.nanmax(p.data)
+                maxpres = np.nanmax(self.getData('pres').data)
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
                 
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},

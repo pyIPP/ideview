@@ -869,12 +869,36 @@ class View(tk.Tk):
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
 
+            if self.__firstplot and key == 'profile-pcon':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+
             if self.__firstplot and key == 'trace-pol':
                 leg = ax.legend(loc='best', fancybox=True)
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
                 print '\npol: just channels 1,2 available\n'
+                
+            if self.__firstplot and key == 'trace-tilecur':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                    
+            if self.__firstplot and key == 'trace-uloop':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
+                    
+            if self.__firstplot and key == 'trace-diafl':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
 
 
         self.__firstplot = False
