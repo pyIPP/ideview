@@ -132,7 +132,7 @@ class ShotfileBackend(Backend):
                     'trace-k_oben',
                     'trace-k_unten',
                     'trace-dRxP',
-                    'trace-eccd_tot',
+                    'trace-I_tot',
                     'trace-Itax',
                     'trace-ecrhmax(R)',
                     'trace-ecrhmax(z)',
@@ -211,7 +211,6 @@ class ShotfileBackend(Backend):
             if name == 'It':
                 lookforab = 'R_Itor' # 'rhop_It'
                 MES.area = self.getData(lookforab)
-
 
             if onlyMES:
                 return MES
@@ -470,6 +469,7 @@ class ShotfileBackend(Backend):
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
+                    
                 elif name == 'betpol' or name == 'li':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
                     if UNC is not None:
@@ -477,6 +477,24 @@ class ShotfileBackend(Backend):
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
                     return PlotBunch(kind='trace',data=data, 
                         setting={'ylim':(0,min(3, max(MES.data+UNC.data)))})
+                        
+                elif name == 'eccd_tot':
+                    data = [{'x': t,'c': 'k', 'label':None}]
+                    eccd = self.getData('eccd_tot')
+                    nbcd = self.getData('nbcd_tot')
+                    bscd = self.getData('bscd_tot')
+                    ohmi = self.getData('ohmi_tot')
+                    data.extend([{'x': eccd.time, 'y': eccd.data, 'ls': '-', 'label': 'eccd', 'c': 'orange'}])                    
+                    if nbcd is not None:
+                        data.extend([{'x': nbcd.time, 'y': nbcd.data, 'ls': '-', 'label': 'nbcd', 'c': 'b'}])
+                    if bscd is not None:
+                        data.extend([{'x': bscd.time, 'y': bscd.data, 'ls': '-', 'label': 'bscd', 'c': 'g'}])
+                    if ohmi is not None:
+                        data.extend([{'x': ohmi.time, 'y': ohmi.data, 'ls': '-', 'label': 'ohmi', 'c': 'r'}])                    
+                    if eccd is not None and nbcd is not None and bscd is not None and ohmi is not None:
+                        data.extend([{'x': eccd.time, 'y': eccd.data+nbcd.data+bscd.data+ohmi.data, 'ls': '-', 'label': 'I_tot', 'c': 'k'}])
+                    return PlotBunch(kind='trace', data=data)
+                
                 else:
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-', 'label':'mes'},{'x': t,'c': 'k'}]
                     if UNC is not None and 10*np.average(MES.data)>np.average(UNC.data):
@@ -506,7 +524,7 @@ class ShotfileBackend(Backend):
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
-                return PlotBunch(kind='trace',data=data)
+                return PlotBunch(kind='trace',data=data)                
 
             elif name == 'mse':
                 data = [{'x':t,'c':'k'}]
@@ -526,17 +544,6 @@ class ShotfileBackend(Backend):
 
             elif name == 'pol':
                 data = [{'x':t,'c':'k', 'label':None}]
-                #Mesarray = np.array([])
-                #Fitarray = np.array([])
-                #Tracearray = np.array([])
-                #print 'pol', MES.data.shape
-                #for i in range(MES.data.shape[0]):
-                #    Mes = MES.data[i][1]
-                #    Fit = FIT.data[i][1]
-                #    Trace = (MES.data[i][1]-FIT.data[i][1])/UNC.data[i][1]
-                #    Mesarray = np.append(Mesarray,[Mes])
-                #    Fitarray = np.append(Fitarray,[Fit])
-                #    Tracearray = np.append(Tracearray, [Trace])
                 chans = np.array([0,1,2,3,4])
                 Mesarray = MES.data[:, chans]
                 Fitarray = FIT.data[:, chans]
@@ -842,7 +849,7 @@ class ShotfileBackend(Backend):
                 return self.tracedata('dRXP', t)
             #elif name == 'trace-ikCAT':
                 #return self.tracedata('ikCAT', t)
-            elif name == 'trace-eccd_tot':
+            elif name == 'trace-I_tot':
                 return self.tracedata('eccd_tot', t)
             elif name == 'trace-ecrhmax(R)':
                 return self.tracedata('ecrhmax', t, ecrh = 'R')
