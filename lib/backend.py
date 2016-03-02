@@ -156,7 +156,8 @@ class ShotfileBackend(Backend):
                     'timecontour-mse',
                     'timecontour-I_tor',
                     'timecontour-I_torcon',
-                    'timecontour-Bprob']
+                    'timecontour-Bprob',
+                    'timecontour-It_av']
 
     __plotNames += ['contour-pfl',
                     'contour-rho']
@@ -560,8 +561,8 @@ class ShotfileBackend(Backend):
                     if i not in hasmes:
                         data[-1]['alpha'] = 0.2
                     elif not labeled:
-                        data[-1]['label'] = 'res'
-                        data[-2]['label'] = 'fit'
+                        data[-1]['label'] = 'fit'
+                        data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
                     
@@ -584,8 +585,8 @@ class ShotfileBackend(Backend):
                     if i not in hasmes:
                         data[-1]['alpha'] = 0.2
                     elif not labeled:
-                        data[-1]['label'] = 'res'
-                        data[-2]['label'] = 'fit'
+                        data[-1]['label'] = 'fit'
+                        data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
                     
@@ -608,8 +609,8 @@ class ShotfileBackend(Backend):
                     if i not in hasmes:
                         data[-1]['alpha'] = 0.2
                     elif not labeled:
-                        data[-1]['label'] = 'res'
-                        data[-2]['label'] = 'fit'
+                        data[-1]['label'] = 'fit'
+                        data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
                     
@@ -709,6 +710,7 @@ class ShotfileBackend(Backend):
         return self._cache[name]
 
     def getSinglePlotForTimePoint(self, name, t):
+        
         t_ind = np.abs(self.getData('time').data - t).argmin()
         if 'timecontour' in name:
 
@@ -741,6 +743,9 @@ class ShotfileBackend(Backend):
 
             elif name == 'timecontour-I_torcon':
                 return self.timecontourdata('jtcon', t)
+                
+            elif name == 'timecontour-It_av':
+                return self.timecontourdata('It_av', t)
 
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
