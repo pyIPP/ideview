@@ -421,7 +421,6 @@ class ShotfileBackend(Backend):
                 YMIN, YMAX = Itav.data.min(), Itav.data.max()
             elif name == 'jtcon':
                 XMIN, XMAX = 0, 1
-                #embed()
 
             return PlotBunch(data=data, setting={'xlim': (XMIN,XMAX), 'ylim':(YMIN,YMAX)})
 
@@ -638,7 +637,14 @@ class ShotfileBackend(Backend):
             MES = self.lookfordata(name, onlyMES=True)
             if name == 'q_sa':
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
-                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]}, {'x':t, 'c':'k'}], setting= {'ylim':(0,1)})
+                                                            'z': np.abs(MES.data),'levels':[1, 1.5, 2, 3, 4, 5]},
+                                                            {'x':t, 'c':'k'}], setting= {'ylim':(0,1)})
+            elif name in ('It_av', 'Itps_av', 'Itfs_av'):
+                rhopItav = self.getData('rhop_It')
+                startprof = 0
+                midprof = rhopItav.data[0].argmin()+1
+                return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':rhopItav.data[0,startprof:midprof],
+                                                            'z':MES.data[:,startprof:midprof]}, {'x':t, 'c':'k'}])
             else:
                 return PlotBunch(kind='timecontour', data=[{'x':MES.time, 'y':MES.area.data[0],
                                                             'z':MES.data}, {'x':t, 'c':'k'}])
