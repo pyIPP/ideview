@@ -4,7 +4,7 @@ from IPython import embed
 from copy import copy,deepcopy
 sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
 from lib.bunch import PlotBunch
-import dd_20140805 as dd
+import dd_20160311 as dd
 import kk_abock as kk
 sys.path.append('/afs/ipp/home/g/git/python/repository/')
 
@@ -756,9 +756,16 @@ class ShotfileBackend(Backend):
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
             
-            tmp = self.getData('pfm', t)
-            Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
-
+            for eq in self.equ:
+                try:
+                    pfm = eq.getObjectData('PFM')[t_index]
+                except Exception:
+                    continue
+                Ri = eq('Ri').data[t_index]
+                Zj = eq('Zj').data[t_index]
+            
+            #tmp = self.getData('pfm', t)
+            #Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
             psiAx, psiSep = self.getData('PFxx').data[t_index, :2]        
             
             data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx,'levels':np.arange(0,2,.1)}]
