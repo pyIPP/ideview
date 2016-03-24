@@ -96,7 +96,11 @@ class ShotfileBackend(Backend):
                    'profile-n_e+n_i',
                    'profile-sigma',
                    'profile-ncft',
-                   'profile-Zeff']
+                   'profile-Zeff',
+                   'profile-Vp',
+                   'profile-G2',
+                   'profile-G3',
+                   'profile-Jdia_curr_ratio']
 
     __plotNames += ['res(profile)-Dpsi',
                     'res(profile)-Iext',
@@ -756,7 +760,7 @@ class ShotfileBackend(Backend):
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
             
-            for eq in self.equ:
+            for eq in self.equ:     # Attention: if no shot could be loaded, then here an error occurs which disables the other parameters too
                 try:
                     pfm = eq.getObjectData('PFM')[t_index]
                 except Exception:
@@ -1001,6 +1005,18 @@ class ShotfileBackend(Backend):
 
             elif name == 'profile-Zeff':
                 return self.profiledata('cde_zeff', t, t_ind)
+                
+            elif name == 'profile-Vp':
+                return self.profiledata('cde_Vp', t, t_ind)
+            
+            elif name == 'profile-G2':
+                return self.profiledata('cde_G2', t, t_ind)
+            
+            elif name == 'profile-G3':
+                return self.profiledata('cde_G3', t, t_ind)
+                
+            elif name == 'profile-Jdia_curr_ratio':
+                return self.profiledata('cde_J', t, t_ind)
 
     def getPlotsForTimePoint(self, names, t):
         
