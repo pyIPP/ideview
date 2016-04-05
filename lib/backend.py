@@ -328,6 +328,7 @@ class ShotfileBackend(Backend):
                 #XMAX = 1.2
             elif name == 'eccurtot':
                 data = []
+                #embed()
                 cdebase = self.getData('cde_rp')
                 eccurtot = self.getData('eccurtot')
                 j_BS = self.getData('cde_bs')
@@ -341,8 +342,12 @@ class ShotfileBackend(Backend):
                 interp2 = np.interp(xvals, cdebase.data[t_ind], j_BS.data[t_ind])
                 interp3 = np.interp(xvals, cdebase.data[t_ind], j_nbcd.data[t_ind])
                 data.extend([{'x': xvals, 'y': interp1+interp2+interp3, 'marker':'', 'ls':'--', 'c':'k', 'exc': True}])
-                YMIN = np.nanmin(eccurtot.data+j_nbcd.data + j_BS.data)
-                YMAX = np.nanmax(eccurtot.data+j_nbcd.data + j_BS.data)
+                try:    # for different area bases
+                    YMIN = np.nanmin(eccurtot.data+j_nbcd.data + j_BS.data)
+                    YMAX = np.nanmax(eccurtot.data+j_nbcd.data + j_BS.data)
+                except ValueError:
+                    YMIN = -2e6
+                    YMAX = 3e6
                 if YMIN < -2e6: YMIN = -2e6
                 if YMAX > 3e6: YMAX = 3e6
                 XMIN = 0
