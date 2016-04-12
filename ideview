@@ -905,6 +905,12 @@ class View(tk.Tk):
                 leg.get_frame().set_alpha(0.7)
                 for legobj in leg.legendHandles:
                     legobj.set_linewidth(2.0)
+                    
+            if self.__firstplot and key == 'trace-chi_sq':
+                leg = ax.legend(loc='best', fancybox=True)
+                leg.get_frame().set_alpha(0.7)
+                for legobj in leg.legendHandles:
+                    legobj.set_linewidth(2.0)
 
 
         self.__firstplot = False

@@ -149,7 +149,9 @@ class ShotfileBackend(Backend):
                     'trace-Shear_q1',
                     'trace-diafl',
                     'trace-tilecur',
-                    'trace-uloop']
+                    'trace-uloop',
+                    'trace-Btor',
+                    'trace-chi_sq']
 
     __plotNames += ['timecontour-pressure',
                     'timecontour-q',
@@ -192,6 +194,10 @@ class ShotfileBackend(Backend):
                     MES = self.getData('tilecurm')
                     UNC = self.getData('tilecuru')
                     FIT = self.getData('tilecurf')
+                elif name == 'chi_sq':
+                    MES = self.getData('Bprobmes')
+                    UNC = self.getData('Bprobunc')
+                    FIT = self.getData('Bprobfit')
                 else:
                     unc = '%s_unc' %name
                     UNC = self.getData(unc)
@@ -624,8 +630,23 @@ class ShotfileBackend(Backend):
                     
                 return PlotBunch(kind='trace',data=data)
                 
-                
-                
+            elif name == 'chi_sq':
+                data = [{'x':t,'c':'k', 'label':None}]
+                meslist = ['Bprobmes', 'Iextmes', 'jtconmes', 'Dpsimes', 'pcon_mes', 'pol_mes', 'mse_mes']
+                colorlist = ['r', 'b', 'g', 'cyan', 'orange', 'purple', 'pink']
+                nmes = len(meslist)
+                chisq = []
+                time = MES.time
+                for i, name in enumerate(meslist):
+                    mes, fit, unc = self.getData(name), self.getData(name.replace('mes', 'fit')), self.getData(name.replace('mes', 'unc'))
+                    if mes is None:
+                        continue
+                    nmes += mes.shape[1]
+                    d = np.sum(((mes.data-fit.data)/unc.data)**2, 1)
+                    chisq.append(d)
+                    data.append({'x':time, 'y':chisq[-1], 'ls':'-', 'c':colorlist[i], 'label':name.replace('mes', '')})
+                data.append({'x':time, 'y':np.sum(np.array(chisq)/nmes, 0), 'ls':'-', 'c':'k', 'label':'tot'})
+                return PlotBunch(kind='trace', data=data)
                 
             else:
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
@@ -900,6 +921,10 @@ class ShotfileBackend(Backend):
                 return self.tracedata('tilecur', t)
             elif name == 'trace-uloop':
                 return self.tracedata('uloop', t)
+            elif name == 'trace-Btor':
+                return self.tracedata('Btor', t)
+            elif name == 'trace-chi_sq':
+                return self.tracedata('chi_sq', t)
                 
 
         elif 'profile' in name:
