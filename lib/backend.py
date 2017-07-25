@@ -146,6 +146,7 @@ class ShotfileBackend(Backend):
                     'trace-Vol',
                     'trace-pol',
                     'trace-mse',
+                    'trace-imse',
                     'trace-Shear_q1',
                     'trace-diafl',
                     'trace-tilecur',
@@ -541,7 +542,7 @@ class ShotfileBackend(Backend):
                         data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
                 return PlotBunch(kind='trace',data=data)                
 
-            elif name == 'mse':
+            elif 'mse' in name:
                 data = [{'x':t,'c':'k'}]
                 for j in range(MES.data.shape[1]):
                     Mesarray = np.array([])
@@ -563,7 +564,8 @@ class ShotfileBackend(Backend):
                 Mesarray = MES.data[:, chans]
                 Fitarray = FIT.data[:, chans]
                 Resarray = (MES.data[:, chans] - FIT.data[:, chans])/UNC.data[:, chans]
-                hasmes = chans[np.average(Mesarray, axis=0) > 0.01]
+                #hasmes = chans[np.average(Mesarray, axis=0) > 0.01]
+                hasmes = chans[np.average(Mesarray, axis=0) != 0]
                 colors = ['k', 'darkred', 'navy', 'purple', 'darkgreen']
                 colors2 = ['gray', 'red', 'blue', 'pink', 'green']
                 labeled = False
@@ -913,6 +915,8 @@ class ShotfileBackend(Backend):
                 return self.tracedata('pol', t)
             elif name == 'trace-mse':
                 return self.tracedata('mse', t)
+            elif name == 'trace-imse':
+                return self.tracedata('imse', t)
             elif name == 'trace-Shear_q1':
                 return self.tracedata('shear_q1', t)
             elif name == 'trace-diafl':
