@@ -424,10 +424,11 @@ class ShotfileBackend(Backend):
                 
             elif name in ('It_av', 'Itps_av', 'Itfs_av'):
                 Itav = self.getData(name)
-                rhopItav = self.getData('rhop_It')
+                #rhopItav = self.getData('rhop_It')
+                rhopItav = self.getData('rhopol')
                 Itavunc = self.getData(name+'_un' if name == 'It_av' else name+'u')
                 startprof = 0 #np.where(rhopItav.data[t_ind] < 1)[0][0]
-                midprof = rhopItav.data[t_ind].argmin()+1
+                midprof = rhopItav.data.shape[1] # [t_ind].argmin()+1
                 data = [
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'}, 
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data+Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
@@ -435,6 +436,7 @@ class ShotfileBackend(Backend):
                 ]
                 XMIN, XMAX = 0, 1
                 YMIN, YMAX = Itav.data.min(), Itav.data.max()
+                #embed()
             elif name == 'jtcon':
                 XMIN, XMAX = 0, 1
 
