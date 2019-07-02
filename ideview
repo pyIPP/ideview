@@ -9,27 +9,29 @@ if platform.system() != 'Linux':
     print 'Please use "toksXX" or "tokiXX". i.e. "ssh toksXX" where "XX" means numbers between 01-06'
     sys.exit()
 
-try:
-    import numpy as np, matplotlib.pyplot as plt
-    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
-    import matplotlib.gridspec as gridspec
-    from matplotlib.figure import Figure
-    from matplotlib.ticker import ScalarFormatter 
-    from IPython import embed
-    sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
-    from lib.settings import Settings
-    from lib.backend import ShotfileBackend
-    import kk_abock as kk
-    sys.path.append('/afs/ipp/home/g/git/python/repository/')
-    from functools import partial
-    import matplotlib.animation as manimation
-    from tooltip import createToolTip
+sys.path.append("/usr/lib64/python2.7/site-packages")
+"""try:"""
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2TkAgg
+import matplotlib.gridspec as gridspec
+from matplotlib.figure import Figure
+from matplotlib.ticker import ScalarFormatter 
+from IPython import embed
+sys.path.append('/afs/ipp/aug/ads-diags/common/python/lib')
+from lib.settings import Settings
+from lib.backend import ShotfileBackend
+import kk_abock as kk
+sys.path.append('/afs/ipp/home/g/git/python/repository/')
+from functools import partial
+import matplotlib.animation as manimation
+"""from tooltip import createToolTip"""
 
-except ImportError, e:
+"""except ImportError, e:
     print e
     print 'Did you do "module load python27/basic"?'
     sys.exit()
-
+"""
 
 zoomed_axes = [None]
 
@@ -274,9 +276,10 @@ class View(tk.Tk):
         
         self.viewfig.canvas.mpl_connect('button_press_event', fconf_on_click)
 
-        createToolTip(button_backward,'Go backward by one timestep, (also right mouse button)')
+        """createToolTip(button_backward,'Go backward by one timestep, (also right mouse button)')
         createToolTip(self.playButton,'Play,Stop, also controlled by mouse middle button and <space>')
         createToolTip(button_forward,'Go forward by one timestep, (also left mouse button)')
+        """
 
     def scrollTime(self, event):
         if self.loaded:
@@ -796,7 +799,7 @@ class View(tk.Tk):
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
                                 z = 1 - z  #NOTE just to plot lines out of the separatrix by dashed lines 
-                                p['levels'] = 1- p['levels']
+                                p['levels'] = 1 - p['levels'] if p['levels'][-1] < p['levels'][0] else p['levels']
     
                             self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
