@@ -831,8 +831,8 @@ class View(tk.Tk):
                                     ax.collections.remove(coll) 
                             if 'rho' in key:
                                 z = 1 - z
-                                p['levels'] = 1- p['levels']
-    
+                                p['levels'] = np.sort(1 - p['levels'])
+                
                             self._linecache[cachekey] = ax.contour(x, y, z,colors='k',**p)
 
 
