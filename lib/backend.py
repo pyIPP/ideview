@@ -35,7 +35,7 @@ class ShotfileBackend(Backend):
         self.equ.append(dd.shotfile(diag, shot, experiment, edition))
         self.openedEditions[diag] = self.equ[-1].edition
         try:
-            if diag == 'IDE': 
+            if diag == 'IDE':
                 idf_ed = self.equ[-1].getParameter('idefg_ed', 'idf_ed').data
                 idg_ed = self.equ[-1].getParameter('idefg_ed', 'idg_ed').data
                 self.equ.append(dd.shotfile('IDF', shot, experiment, idf_ed))
@@ -52,11 +52,11 @@ class ShotfileBackend(Backend):
         #shotfiles with 1d quantities
         diags_1d =  {'EQE':'GQE','FPQ':'FPK','EQI':'GQI','EQH':'GQH',
                      'FPP':'GPI','EQR':'FPG'}
-        
+
         if diag in diags_1d:
             self.equ.append(dd.shotfile(diags_1d[diag], shot, experiment, edition))
             self.openedEditions[diags_1d[diag]] = self.equ[-1].edition
-        
+
         if diag == 'MGS':
             raise Warning('MGS is not supported yet')
         self.eq = kk.kk()
@@ -100,7 +100,9 @@ class ShotfileBackend(Backend):
                    'profile-Vp',
                    'profile-G2',
                    'profile-G3',
-                   'profile-Jdia_curr_ratio']
+                   'profile-Jdia_curr_ratio',
+                   'profile-fpcd',
+                   'profile-fpUl']
 
     __plotNames += ['res(profile)-Dpsi',
                     'res(profile)-Iext',
@@ -113,7 +115,7 @@ class ShotfileBackend(Backend):
                     'trace-Iext',
                     'trace-Rmag',
                     'trace-Zmag',
-                    'trace-Rin',                   
+                    'trace-Rin',
                     'trace-Raus',
                     'trace-betapol',
                     'trace-betapol+li/2',
@@ -216,7 +218,7 @@ class ShotfileBackend(Backend):
                 MES.area = self.getData(lookforab)
                 if name == 'q_sa':
                     MES.area = self.getData('rhopol_q')
-                    
+
                 if not onlyMES and FIT is not None and FIT.area is None:
                     FIT.area = self.getData(lookforab)
 
@@ -246,7 +248,7 @@ class ShotfileBackend(Backend):
             if name != 'q_sa' and name != 'eccurgyr':
                 data=[{'x': MES_Area_data, 'y': MES_Data, 'marker':'', 'ls':'-', 'c':'k'}]
 
-            
+
             if (not UNC is None) and unc:
                 UNC_Data = UNC.data[t_ind]
                 if 'con' in name:
@@ -259,7 +261,7 @@ class ShotfileBackend(Backend):
                 FIT_Area_data = FIT.area.data[0 if shape[0]==1 else t_ind]
                 FIT_Data = FIT.data[t_ind]
                 data.extend([{'x': FIT_Area_data, 'y': FIT_Data, 'c':'r','ls':'-'}])
-                
+
             if name == 'pcon':
                 pconfast = self.getData('pconfast')
                 data[0]['label'] = 'pcon'
@@ -273,7 +275,7 @@ class ShotfileBackend(Backend):
                 rho = qsa.area.data[t_ind]
                 rho[0] = np.nan  #diffifulties with elevated profiles and q=1
                 q = abs(qsa.data)
-                
+
                 XIQ1  = np.interp(1,q[t_ind],rho,left=np.nan)
                 XIQ2  = np.interp(2,q[t_ind],rho,left=np.nan)
                 XIQ3_2= np.interp(1.5,q[t_ind],rho,left=np.nan)
@@ -281,7 +283,7 @@ class ShotfileBackend(Backend):
 
                 data = [{'x':  qsa.area.data[t_ind], 'y': q[t_ind], 'c':'k'},{'x': XIQ1}, {'x': XIQ2},{'x':XIQ3_2},
                       {'y': 1,'c':'k','alpha':.3}, {'y': 2,'c':'k','alpha':.3},{'y': 1.5,'c':'k','alpha':.3}]
-                
+
                 qsap = self.getData('q_sa_plu')
                 qsap.area = self.getData('rhopol_q')
                 qsam = self.getData('q_sa_min')
@@ -298,12 +300,12 @@ class ShotfileBackend(Backend):
                 MES.area = self.getData('eccd_rp')
                 for i in range(0, int(MES.data.shape[2])):
                     colour = colours[i]
-                    if MES.area.data[t_ind].max() > 1:                        
+                    if MES.area.data[t_ind].max() > 1:
                         data.extend([{'x': np.array([0,1]), 'y': np.array([0,0]), 'ls': '--', 'c': colour, 'label':'gyr%i'%(i+1), 'exc' : True}])
                     else:
                         data.extend([{'x': MES.area.data[t_ind], 'y': MES.data[t_ind, :, i], 'ls': '--', 'c': colour, 'label':'gyr%i'%(i+1), 'exc' : True}])
                 total = self.getData('eccurtot')
-                if MES.area.data[t_ind].max() > 1:                        
+                if MES.area.data[t_ind].max() > 1:
                     data.extend([{'x': np.array([0,1]), 'y': np.array([0,0]), 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
                 else:
                     data.extend([{'x': MES.area.data[t_ind], 'y': total.data[t_ind, :], 'ls': '-', 'c': 'k', 'label':'total', 'exc' : True}])
@@ -416,12 +418,12 @@ class ShotfileBackend(Backend):
             elif name == 'ncft':
                 YMIN = 0
                 YMAX = 1
-            
+
             elif name == 'sig_snc':
                 YMIN = 0
                 a = np.ravel(MES.data)
                 YMAX = a[np.isfinite(a)][a[np.isfinite(a)].argsort()][-1]
-                
+
             elif name in ('It_av', 'Itps_av', 'Itfs_av'):
                 Itav = self.getData(name)
                 #rhopItav = self.getData('rhop_It')
@@ -430,7 +432,7 @@ class ShotfileBackend(Backend):
                 startprof = 0 #np.where(rhopItav.data[t_ind] < 1)[0][0]
                 midprof = rhopItav.data.shape[1] # [t_ind].argmin()+1
                 data = [
-                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'}, 
+                    {'x': rhopItav.data[t_ind, startprof:midprof], 'y':Itav.data[t_ind, startprof:midprof], 'c':'k', 'ls':'-'},
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data+Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
                     {'x': rhopItav.data[t_ind, startprof:midprof], 'y':(Itav.data-Itavunc.data)[t_ind, startprof:midprof], 'c':'b', 'ls':'--'},
                 ]
@@ -453,11 +455,11 @@ class ShotfileBackend(Backend):
             RES = (MES.data[t_ind]-FIT.data[t_ind])/UNC.data[t_ind]
             tmparray = np.array([RES])
             RESarray = np.append(RESarray,tmparray)
-     
+
             data = []
             for i, y in enumerate(RESarray):
                 if i == 0:
-                    data.append({'x': [MES.area.data[0,i]]*2, 'y': [0, y], 'marker':'+', 'markersize':10, 
+                    data.append({'x': [MES.area.data[0,i]]*2, 'y': [0, y], 'marker':'+', 'markersize':10,
                         'label': '%s residuum'%name, 'exc':True}) # exc: exception for residua labels
                 else:
                     data.append({'x': [MES.area.data[0,i]]*2, 'y': [0, y], 'marker':'+', 'markersize':10})
@@ -482,37 +484,37 @@ class ShotfileBackend(Backend):
                         data=[{'x': MES.time, 'y': q, 'ls': '-'},{'x': t,'c': 'k'},
                               {'x': MES.time, 'y': abs(UNCplus.data), 'ls': '--'}, {'x' : MES.time, 'y': abs(UNCminus.data), 'ls': '--'}]
                         return PlotBunch(kind='trace',data=data, setting={'ylim':(0,10)})
-                        
-                    
+
+
                 elif name == 'Vol':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x':t, 'c':'k'}]
                     return PlotBunch(kind='trace',data=data)
-                    
+
                 elif name == 'betpol' or name == 'li':
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-'},{'x': t,'c': 'k'}]
                     if UNC is not None:
                         data.extend([{'x': MES.time, 'y': MES.data+UNC.data, 'ls': '--'},
                                      {'x': MES.time, 'y': np.maximum(0,MES.data-UNC.data), 'ls': '--'}])
-                    return PlotBunch(kind='trace',data=data, 
+                    return PlotBunch(kind='trace',data=data,
                         setting={'ylim':(0,min(3, max(MES.data+UNC.data)))})
-                        
+
                 elif name == 'eccd_tot':
                     data = [{'x': t,'c': 'k', 'label':None}]
                     eccd = self.getData('eccd_tot')
                     nbcd = self.getData('nbcd_tot')
                     bscd = self.getData('bscd_tot')
                     ohmi = self.getData('ohmi_tot')
-                    data.extend([{'x': eccd.time, 'y': eccd.data, 'ls': '-', 'label': 'eccd', 'c': 'orange'}])                    
+                    data.extend([{'x': eccd.time, 'y': eccd.data, 'ls': '-', 'label': 'eccd', 'c': 'orange'}])
                     if nbcd is not None:
                         data.extend([{'x': nbcd.time, 'y': nbcd.data, 'ls': '-', 'label': 'nbcd', 'c': 'b'}])
                     if bscd is not None:
                         data.extend([{'x': bscd.time, 'y': bscd.data, 'ls': '-', 'label': 'bscd', 'c': 'g'}])
                     if ohmi is not None:
-                        data.extend([{'x': ohmi.time, 'y': ohmi.data, 'ls': '-', 'label': 'ohmi', 'c': 'r'}])                    
+                        data.extend([{'x': ohmi.time, 'y': ohmi.data, 'ls': '-', 'label': 'ohmi', 'c': 'r'}])
                     if eccd is not None and nbcd is not None and bscd is not None and ohmi is not None:
                         data.extend([{'x': eccd.time, 'y': eccd.data+nbcd.data+bscd.data+ohmi.data, 'ls': '-', 'label': 'I_tot', 'c': 'k'}])
                     return PlotBunch(kind='trace', data=data)
-                
+
                 else:
                     data=[{'x': MES.time, 'y': MES.data, 'ls': '-', 'label':'mes'},{'x': t,'c': 'k'}]
                     if UNC is not None and 10*np.average(MES.data)>np.average(UNC.data):
@@ -542,7 +544,7 @@ class ShotfileBackend(Backend):
                     for i in range(MES.data.shape[2]):
                         colour = colours[i]
                         data.append({'x':MES.time, 'y':MES.data[:,3,i], 'label':'gyro%i'%(i+1), 'c': colour, 'exc' : True})
-                return PlotBunch(kind='trace',data=data)                
+                return PlotBunch(kind='trace',data=data)
 
             elif 'mse' in name:
                 data = [{'x':t,'c':'k'}]
@@ -553,11 +555,11 @@ class ShotfileBackend(Backend):
                         Mes = MES.data[i][j]
                         Fit = FIT.data[i][j]
                         Mesarray = np.append(Mesarray,[Mes])
-                        Fitarray = np.append(Fitarray,[Fit])                        
-                    
+                        Fitarray = np.append(Fitarray,[Fit])
+
                     data.append({'x':MES.time, 'y':Mesarray, 'ls':'-'})
                     data.append({'x':MES.time, 'y':Fitarray, 'ls':'-', 'c':'r'})
-                    
+
                 return PlotBunch(kind='trace',data=data)
 
             elif name == 'pol':
@@ -583,9 +585,9 @@ class ShotfileBackend(Backend):
                         data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
-                    
+
                 return PlotBunch(kind='trace',data=data)
-                
+
             elif name == 'tilecur':
                 data = [{'x':t,'c':'k', 'label':None}]
                 chans = np.array([0,1])
@@ -607,9 +609,9 @@ class ShotfileBackend(Backend):
                         data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
-                    
+
                 return PlotBunch(kind='trace',data=data)
-                
+
             elif name == 'uloop':
                 data = [{'x':t,'c':'k', 'label':None}]
                 chans = np.array([0,1,2])
@@ -631,9 +633,9 @@ class ShotfileBackend(Backend):
                         data[-2]['label'] = 'res'
                         labeled = True
                         data[-3]['label'] = 'mes'
-                    
+
                 return PlotBunch(kind='trace',data=data)
-                
+
             elif name == 'chi_sq':
                 data = [{'x':t,'c':'k', 'label':None}]
                 meslist = ['Bprobmes', 'Iextmes', 'jtconmes', 'Dpsimes', 'pcon_mes', 'pol_mes', 'mse_mes']
@@ -651,14 +653,14 @@ class ShotfileBackend(Backend):
                     data.append({'x':time, 'y':chisq[-1], 'ls':'-', 'c':colorlist[i], 'label':name.replace('mes', '')})
                 data.append({'x':time, 'y':np.sum(np.array(chisq)/nmes, 0), 'ls':'-', 'c':'k', 'label':'tot'})
                 return PlotBunch(kind='trace', data=data)
-                
+
             else:
                 tmp = ((MES.data-FIT.data)/UNC.data)**2
                 points = MES.data.shape[-1]
                 sum_ = np.sum(tmp, axis=1)
                 TRACE = sum_/points
                 data=[{'x':MES.time, 'y':TRACE, 'ls':'-'},{'x':t,'c':'k'}]
-                
+
                 return PlotBunch(kind='trace',data=data)
 
 
@@ -695,13 +697,13 @@ class ShotfileBackend(Backend):
 
         #workaround for the loading of the data from the equilibrium shotfiles
         if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and not name in self._cache:
-            
+
             tvec = self.getData('time').data
 
             t_index = slice(None,len(tvec))
 
-            if name in ['Pres','Jpol']: 
-                prof = self.getData(name)[t_index,::2] 
+            if name in ['Pres','Jpol']:
+                prof = self.getData(name)[t_index,::2]
             else:
                 prof = self.getData(name)[t_index,:]
 
@@ -709,14 +711,14 @@ class ShotfileBackend(Backend):
             phi = self.getData('PFL')[t_index,:]
             rho = np.sqrt(np.abs((phi-psiAx).data/(psiSep-psiAx)))
             ind = np.argsort(rho,axis=1)
-            
+
             for i,ii in enumerate( ind): prof.data[i] = prof.data[i][ii]
             for i,ii in enumerate( ind): rho[i] = rho[i][ii]
 
             prof.area  = Data()
             prof.area.data = rho
             prof.time = tvec
-            
+
             self._cache[name] = prof
 
         if name in ['Qpsi','Pres','Jpol'] and workaround_time!= None and name in self._cache:
@@ -746,17 +748,17 @@ class ShotfileBackend(Backend):
                         except Exception:
                             pass
                         break
-  
+
         return self._cache[name]
 
     def getSinglePlotForTimePoint(self, name, t):
-        
+
         t_ind = np.abs(self.getData('time').data - t).argmin()
         if 'timecontour' in name:
 
             if name == 'timecontour-pressure':
                 return self.timecontourdata('pres', t)
-            
+
             elif name == 'timecontour-q':
                 return self.timecontourdata('q_sa', t)
 
@@ -783,13 +785,13 @@ class ShotfileBackend(Backend):
 
             elif name == 'timecontour-I_torcon':
                 return self.timecontourdata('jtcon', t)
-                
+
             elif name == 'timecontour-It_av':
                 return self.timecontourdata('It_av', t)
 
         elif 'contour' in name:
             t_index = np.abs(self.times - t).argmin()
-            
+
             for eq in self.equ:     # Attention: if no shot could be loaded, then here an error occurs which disables the other parameters too
                 try:
                     pfm = eq.getObjectData('PFM')[t_index]
@@ -797,11 +799,11 @@ class ShotfileBackend(Backend):
                     continue
                 Ri = eq('Ri').data[t_index]
                 Zj = eq('Zj').data[t_index]
-            
+
             #tmp = self.getData('pfm', t)
             #Ri = tmp['Ri']; Zj = tmp['zj']; pfm = tmp['pfm']
-            psiAx, psiSep = self.getData('PFxx').data[t_index, :2]        
-            
+            psiAx, psiSep = self.getData('PFxx').data[t_index, :2]
+
             data = [{'x': Ri, 'y': Zj, 'z': pfm, 'psiSep': psiSep, 'psiAx': psiAx,'levels':np.arange(0,2,.1)}]
 
             if 'pfl' in name:
@@ -826,7 +828,7 @@ class ShotfileBackend(Backend):
                             ind = np.where((R==0) + (z==0))
                             R = np.delete(R, ind)
                             z = np.delete(z, ind)
-    
+
                             data.append({'x':R, 'y':z, 'ls':'-', 'c':colour, 'gyro_ind':i})
                         data.append({'x':MESmax.data[t_index,0,i], 'y':MESmax.data[t_index,1,i], 'ls':'', 'marker':'o', 'c':colour, 'gyro_ind':i})
                         gyrind.append(i)
@@ -931,12 +933,12 @@ class ShotfileBackend(Backend):
                 return self.tracedata('Btor', t)
             elif name == 'trace-chi_sq':
                 return self.tracedata('chi_sq', t)
-                
+
 
         elif 'profile' in name:
             if name == 'profile-q':
                 return self.profiledata('q_sa', t, t_ind)
-                
+
             elif name == 'profile-pressure':
                 return self.profiledata('pres', t, t_ind)
 
@@ -964,22 +966,22 @@ class ShotfileBackend(Backend):
                     p = self.getData('Pres',t)
                 else:
                     p = p(tBegin=t, tEnd=t)
-         
+
                 punc = self.getData('pres_unc',t)
                 pcon = self.getData('pcon_mes')
                 pcon = pcon(tBegin=t, tEnd=t)
                 maxpres = np.nanmax(self.getData('pres').data)
                 pconunc = self.getData('pcon_unc')(tBegin=t, tEnd=t)
-                
+
                 data=[{'x': p.area.data, 'y': p.data, 'ls': '-', 'label':'pressure', 'exc': True},
                       {'x': pcon.area.data, 'y': pcon.data, 'ls':'', 'marker':'+', 'mew':2, 'ms':8, 'c':'k', 'label':'constraint', 'exc': True}]
-                
+
                 if not punc is None:
                     punc = punc(tBegin=t, tEnd=t)
                     data.extend([{'x': p.area.data, 'y': p.data+punc.data, 'ls': '--', 'label':'uncertainty', 'c':'b', 'exc': True}, {'x': p.area.data, 'y': p.data-punc.data, 'ls': '--', 'c':'b', 'exc': True}])
                 if not pconunc is None:
                     data.extend([{'x': pcon.area.data, 'y': pcon.data+pconunc.data,'marker':'_', 'mew': 2, 'ms':8, 'ls': '', 'label':'uncertainty', 'c':'k', 'exc': True}, {'x': pcon.area.data, 'y': pcon.data-pconunc.data,'marker':'_', 'mew':2, 'ms':8, 'ls': '', 'c':'k', 'exc': True}])
-                
+
                 return PlotBunch(data=data, setting={'ylim':(0, maxpres),'xlim':(0,1)})
 
             elif name == 'res(profile)-pcon':
@@ -1023,7 +1025,7 @@ class ShotfileBackend(Backend):
 
             elif name == 'profile-Itfs_av':
                 return self.profiledata('Itfs_av', t, t_ind)
-                
+
             elif name == 'profile-It_av':
                 return self.profiledata('It_av', t, t_ind)
 
@@ -1041,21 +1043,27 @@ class ShotfileBackend(Backend):
 
             elif name == 'profile-Zeff':
                 return self.profiledata('cde_zeff', t, t_ind)
-                
+
             elif name == 'profile-Vp':
                 return self.profiledata('cde_Vp', t, t_ind)
-            
+
             elif name == 'profile-G2':
                 return self.profiledata('cde_G2', t, t_ind)
-            
+
             elif name == 'profile-G3':
                 return self.profiledata('cde_G3', t, t_ind)
-                
+
             elif name == 'profile-Jdia_curr_ratio':
                 return self.profiledata('cde_J', t, t_ind)
 
+            elif name == 'profile-fpcd':
+                return self.profiledata('cde_fpcd', t, t_ind)
+
+            elif name == 'profile-fpUl':
+                return self.profiledata('cde_fpUl', t, t_ind)
+
     def getPlotsForTimePoint(self, names, t):
-        
+
         toReturn = {}
         for name in names:
             if name in self.__plotNames:
@@ -1063,5 +1071,5 @@ class ShotfileBackend(Backend):
                     toReturn[name] = self.getSinglePlotForTimePoint(name, t)
                 except IndexError as e:
                     print e
-                    
+
         return toReturn
